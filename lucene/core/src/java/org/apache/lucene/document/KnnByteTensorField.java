@@ -17,22 +17,19 @@
 
 package org.apache.lucene.document;
 
-import org.apache.lucene.index.FloatVectorValues;
 import org.apache.lucene.index.TensorSimilarityFunction;
 import org.apache.lucene.index.VectorEncoding;
-import org.apache.lucene.index.VectorSimilarityFunction;
 import org.apache.lucene.search.KnnFloatVectorQuery;
 import org.apache.lucene.search.Query;
-import org.apache.lucene.util.FloatTensorValue;
-import org.apache.lucene.util.VectorUtil;
+import org.apache.lucene.util.ByteTensorValue;
 
 import java.util.List;
 import java.util.Objects;
 
 /**
- * A field that contains one or more floating-point numeric vectors for each document.
- * Similar to {@link KnnFloatVectorField}, vectors are dense - that is, every dimension of a vector
- * contains an explicit value, stored packed into an array (of type float[]) whose length is
+ * A field that contains one or more byte numeric vectors for each document.
+ * Similar to {@link KnnByteVectorField}, vectors are dense - that is, every dimension of a vector
+ * contains an explicit value, stored packed into an array (of type byte[]) whose length is
  * the vector dimension.
  *
  * Only rank 2 tensors are currently supported. All vectors in a tensor field are required to have
@@ -42,11 +39,11 @@ import java.util.Objects;
  *
  * @lucene.experimental
  */
-public class KnnFloatTensorField extends Field {
+public class KnnByteTensorField extends Field {
 
   private static final int rank = 2;
 
-  private static FieldType createType(List<float[]> t, TensorSimilarityFunction similarityFunction) {
+  private static FieldType createType(List<byte[]> t, TensorSimilarityFunction similarityFunction) {
     if (t == null) {
       throw new IllegalArgumentException("tensor value must not be null");
     }
@@ -62,7 +59,7 @@ public class KnnFloatTensorField extends Field {
     int dimension = t.get(0).length;
     checkDimensions(t, dimension);
     FieldType type = new FieldType();
-    type.setTensorAttributes(rank, dimension, VectorEncoding.FLOAT32, similarityFunction);
+    type.setTensorAttributes(rank, dimension, VectorEncoding.BYTE, similarityFunction);
     type.freeze();
     return type;
   }
@@ -76,16 +73,16 @@ public class KnnFloatTensorField extends Field {
    */
   public static FieldType createFieldType(int dimension, TensorSimilarityFunction similarityFunction) {
     FieldType type = new FieldType();
-    type.setTensorAttributes(rank, dimension, VectorEncoding.FLOAT32, similarityFunction);
+    type.setTensorAttributes(rank, dimension, VectorEncoding.BYTE, similarityFunction);
     type.freeze();
     return type;
   }
 
   /**
-   * Create a new vector query for the provided field targeting the float vector
+   * Create a new vector query for the provided field targeting the byte vector
    *
    * @param field The field to query
-   * @param queryVector The float vector target
+   * @param queryVector The byte vector target
    * @param k The number of nearest neighbors to gather
    * @return A new vector query
    */
@@ -104,16 +101,15 @@ public class KnnFloatTensorField extends Field {
    * @throws IllegalArgumentException if any parameter is null, or the vector is empty or has
    *     dimension &gt; 1024.
    */
-  public KnnFloatTensorField(
-      String name, List<float[]> tensor, TensorSimilarityFunction similarityFunction) {
+  public KnnByteTensorField(
+      String name, List<byte[]> tensor, TensorSimilarityFunction similarityFunction) {
     super(name, createType(tensor, similarityFunction));
-    tensor.forEach(VectorUtil::checkFinite);
     assert type.tensorDimension() == tensor.get(0).length;
-    fieldsData = new FloatTensorValue(tensor, type.tensorDimension());
+    fieldsData = new ByteTensorValue(tensor, type.tensorDimension());
   }
 
   /**
-   * Creates a numeric tensor field with the default EUCLIDEAN_HNSW (L2) similarity. Vectors within a single
+   * Creates a byte numeric tensor field with the default EUCLIDEAN_HNSW (L2) similarity. Vectors within a single
    * tensor field share the same dimension and similarity function.
    *
    * @param name field name
@@ -121,12 +117,12 @@ public class KnnFloatTensorField extends Field {
    * @throws IllegalArgumentException if any parameter is null, or the vector is empty or has
    *     dimension &gt; 1024.
    */
-  public KnnFloatTensorField(String name, List<float[]> tensor) {
+  public KnnByteTensorField(String name, List<byte[]> tensor) {
     this(name, tensor, TensorSimilarityFunction.SUM_MAX_EUCLIDEAN);
   }
 
   /**
-   * Creates a numeric tensor field. Vectors of a single tensor share the same dimension and similarity function.
+   * Creates a byte numeric tensor field. Vectors of a single tensor share the same dimension and similarity function.
    *
    * @param name field name
    * @param tensor value
@@ -134,13 +130,13 @@ public class KnnFloatTensorField extends Field {
    * @throws IllegalArgumentException if any parameter is null, or the vector is empty or has
    *     dimension &gt; 1024.
    */
-  public KnnFloatTensorField(String name, List<float[]> tensor, FieldType fieldType) {
+  public KnnByteTensorField(String name, List<byte[]> tensor, FieldType fieldType) {
     super(name, fieldType);
-    if (fieldType.tensorEncoding() != VectorEncoding.FLOAT32) {
+    if (fieldType.tensorEncoding() != VectorEncoding.BYTE) {
       throw new IllegalArgumentException(
           "Attempt to create a tensor for field "
               + name
-              + " using List<float[]> but the field encoding is "
+              + " using List<byte[]> but the field encoding is "
               + fieldType.vectorEncoding());
     }
     Objects.requireNonNull(tensor, "tensor value must not be null");
@@ -148,13 +144,12 @@ public class KnnFloatTensorField extends Field {
       throw new UnsupportedOperationException("Only tensors of rank = " + rank + "are supported");
     }
     checkDimensions(tensor, fieldType.tensorDimension());
-    tensor.forEach(VectorUtil::checkFinite);
-    fieldsData = new FloatTensorValue(tensor, fieldType.tensorDimension());
+    fieldsData = new ByteTensorValue(tensor, fieldType.tensorDimension());
   }
 
   /** Return the tensor value of this field */
-  public FloatTensorValue tensorValue() {
-    return (FloatTensorValue) fieldsData;
+  public ByteTensorValue tensorValue() {
+    return (ByteTensorValue) fieldsData;
   }
 
   /**
@@ -162,7 +157,7 @@ public class KnnFloatTensorField extends Field {
    *
    * @param value the value to set; must not be null, and dimension must match the field type
    */
-  public void setTensorValue(FloatTensorValue value) {
+  public void setTensorValue(ByteTensorValue value) {
     if (value == null) {
       throw new IllegalArgumentException("value must not be null or empty");
     }
@@ -173,8 +168,8 @@ public class KnnFloatTensorField extends Field {
     fieldsData = value;
   }
 
-  private static void checkDimensions(List<float[]> tensor, int dimensions) {
-    for(float[] val: tensor) {
+  private static void checkDimensions(List<byte[]> tensor, int dimensions) {
+    for(byte[] val: tensor) {
       if (val.length != dimensions) {
         throw new IllegalArgumentException("All vectors in the tensor should have the " +
             "same dimension value as configured in the fieldType");

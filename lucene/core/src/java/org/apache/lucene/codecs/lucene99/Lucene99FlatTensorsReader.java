@@ -18,6 +18,7 @@
 package org.apache.lucene.codecs.lucene99;
 
 import org.apache.lucene.codecs.CodecUtil;
+import org.apache.lucene.codecs.hnsw.FlatTensorsReader;
 import org.apache.lucene.codecs.hnsw.FlatTensorsScorer;
 import org.apache.lucene.codecs.hnsw.FlatVectorsReader;
 import org.apache.lucene.codecs.hnsw.FlatVectorsScorer;
@@ -52,7 +53,7 @@ import static org.apache.lucene.codecs.lucene99.Lucene99HnswVectorsReader.readVe
  *
  * @lucene.experimental
  */
-public final class Lucene99FlatTensorsReader extends FlatVectorsReader {
+public final class Lucene99FlatTensorsReader extends FlatTensorsReader {
 
   private static final long SHALLOW_SIZE =
       RamUsageEstimator.shallowSizeOfInstance(Lucene99FlatTensorsFormat.class);
@@ -83,11 +84,6 @@ public final class Lucene99FlatTensorsReader extends FlatVectorsReader {
         IOUtils.closeWhileHandlingException(this);
       }
     }
-  }
-
-  @Override
-  public FlatVectorsScorer getFlatVectorScorer() {
-    throw new UnsupportedOperationException("Tensor reader does not work on vector scorer");
   }
 
   private int readMetadata(SegmentReadState state) throws IOException {

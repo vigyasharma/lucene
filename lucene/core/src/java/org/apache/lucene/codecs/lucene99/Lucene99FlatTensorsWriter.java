@@ -22,8 +22,7 @@ import org.apache.lucene.codecs.KnnFieldVectorsWriter;
 import org.apache.lucene.codecs.KnnVectorsWriter;
 import org.apache.lucene.codecs.hnsw.FlatFieldVectorsWriter;
 import org.apache.lucene.codecs.hnsw.FlatTensorsScorer;
-import org.apache.lucene.codecs.hnsw.FlatVectorsScorer;
-import org.apache.lucene.codecs.hnsw.FlatVectorsWriter;
+import org.apache.lucene.codecs.hnsw.FlatTensorsWriter;
 import org.apache.lucene.codecs.lucene95.OrdToDocDISIReaderConfiguration;
 import org.apache.lucene.index.ByteVectorValues;
 import org.apache.lucene.index.DocsWithFieldSet;
@@ -63,7 +62,7 @@ import static org.apache.lucene.search.DocIdSetIterator.NO_MORE_DOCS;
  *
  * @lucene.experimental
  */
-public final class Lucene99FlatTensorsWriter extends FlatVectorsWriter {
+public final class Lucene99FlatTensorsWriter extends FlatTensorsWriter {
 
   private static final long SHALLLOW_RAM_BYTES_USED =
       RamUsageEstimator.shallowSizeOfInstance(Lucene99FlatTensorsWriter.class);
@@ -113,11 +112,6 @@ public final class Lucene99FlatTensorsWriter extends FlatVectorsWriter {
         IOUtils.closeWhileHandlingException(this);
       }
     }
-  }
-
-  @Override
-  public FlatVectorsScorer getFlatVectorScorer() {
-    throw new UnsupportedOperationException("Tensor writer does not support a vector scorer");
   }
 
   @Override
@@ -591,13 +585,13 @@ public final class Lucene99FlatTensorsWriter extends FlatVectorsWriter {
 
     private final RandomVectorScorerSupplier supplier;
     private final Closeable onClose;
-    private final int numVectors;
+    private final int numTensors;
 
     FlatCloseableRandomVectorScorerSupplier(
-        Closeable onClose, int numVectors, RandomVectorScorerSupplier supplier) {
+        Closeable onClose, int numTensors, RandomVectorScorerSupplier supplier) {
       this.onClose = onClose;
       this.supplier = supplier;
-      this.numVectors = numVectors;
+      this.numTensors = numTensors;
     }
 
     @Override
@@ -617,7 +611,7 @@ public final class Lucene99FlatTensorsWriter extends FlatVectorsWriter {
 
     @Override
     public int totalVectorCount() {
-      return numVectors;
+      return numTensors;
     }
   }
 }

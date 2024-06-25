@@ -17,7 +17,10 @@
 
 package org.apache.lucene.codecs.lucene99;
 
+import org.apache.lucene.codecs.hnsw.FlatTensorsFormat;
+import org.apache.lucene.codecs.hnsw.FlatTensorsReader;
 import org.apache.lucene.codecs.hnsw.FlatTensorsScorer;
+import org.apache.lucene.codecs.hnsw.FlatTensorsWriter;
 import org.apache.lucene.codecs.hnsw.FlatVectorsFormat;
 import org.apache.lucene.codecs.hnsw.FlatVectorsReader;
 import org.apache.lucene.codecs.hnsw.FlatVectorsScorer;
@@ -31,7 +34,7 @@ import org.apache.lucene.store.IndexOutput;
 import java.io.IOException;
 
 /**
- * Lucene 9.9 flat vector format, which encodes numeric tensor values
+ * Lucene 9.9 flat tensor format, which encodes numeric tensor values
  *
  * <h2>.tec (tensor data) file</h2>
  *
@@ -77,7 +80,7 @@ import java.io.IOException;
  *
  * @lucene.experimental
  */
-public final class Lucene99FlatTensorsFormat extends FlatVectorsFormat {
+public final class Lucene99FlatTensorsFormat extends FlatTensorsFormat {
 
   static final String META_CODEC_NAME = "Lucene99FlatTensorsFormatMeta";
   static final String VECTOR_DATA_CODEC_NAME = "Lucene99FlatTensorsFormatData";
@@ -96,17 +99,17 @@ public final class Lucene99FlatTensorsFormat extends FlatVectorsFormat {
   }
 
   @Override
-  public FlatVectorsWriter fieldsWriter(SegmentWriteState state) throws IOException {
+  public FlatTensorsWriter fieldsWriter(SegmentWriteState state) throws IOException {
     return new Lucene99FlatTensorsWriter(state, tensorsScorer);
   }
 
   @Override
-  public FlatVectorsReader fieldsReader(SegmentReadState state) throws IOException {
-    return new Lucene99FlatVectorsReader(state, tensorsScorer);
+  public FlatTensorsReader fieldsReader(SegmentReadState state) throws IOException {
+    return new Lucene99FlatTensorsReader(state, tensorsScorer);
   }
 
   @Override
   public String toString() {
-    return "Lucene99FlatVectorsFormat(" + "vectorsScorer=" + tensorsScorer + ')';
+    return "Lucene99FlatTensorsFormat(" + "tensorsScorer=" + tensorsScorer + ')';
   }
 }
