@@ -217,6 +217,10 @@ public final class Lucene60FieldInfosFormat extends FieldInfosFormat {
                 0,
                 VectorEncoding.FLOAT32,
                 VectorSimilarityFunction.EUCLIDEAN,
+                0,
+                2,
+                null,
+                null,
                 isSoftDeletesField,
                 false);
       } catch (IllegalStateException e) {
