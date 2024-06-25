@@ -44,9 +44,18 @@ public abstract class FlatVectorsReader implements Closeable, Accountable {
   /** Scorer for flat vectors */
   protected final FlatVectorsScorer vectorScorer;
 
+  /** Scorer for flat tensors */
+  protected final FlatTensorsScorer tensorScorer;
+
   /** Sole constructor */
   protected FlatVectorsReader(FlatVectorsScorer vectorsScorer) {
     this.vectorScorer = vectorsScorer;
+    this.tensorScorer = null;
+  }
+
+  protected FlatVectorsReader(FlatTensorsScorer tensorScorer) {
+    this.vectorScorer = null;
+    this.tensorScorer = tensorScorer;
   }
 
   /**
@@ -54,6 +63,13 @@ public abstract class FlatVectorsReader implements Closeable, Accountable {
    */
   public FlatVectorsScorer getFlatVectorScorer() {
     return vectorScorer;
+  }
+
+  /**
+   * @return the {@link FlatTensorsScorer} for this reader.
+   */
+  public FlatTensorsScorer getFlatTensorScorer() {
+    return tensorScorer;
   }
 
   /**
