@@ -267,7 +267,7 @@ public abstract class CodecReader extends LeafReader {
     if (fi.hasTensorValues() && fi.getTensorEncoding() == VectorEncoding.FLOAT32) {
       getTensorReader().search(field, target, knnCollector, acceptDocs);
     } else if (fi.hasVectorValues() && fi.getVectorEncoding() == VectorEncoding.FLOAT32) {
-      getVectorReader().getFloatVectorValues(field);
+      getVectorReader().search(field, target, knnCollector, acceptDocs);
     }
   }
 
@@ -282,7 +282,7 @@ public abstract class CodecReader extends LeafReader {
     if (fi.hasTensorValues() && fi.getTensorEncoding() == VectorEncoding.BYTE) {
       getTensorReader().search(field, target, knnCollector, acceptDocs);
     } else if (fi.hasVectorValues() && fi.getVectorEncoding() == VectorEncoding.BYTE) {
-      getVectorReader().getFloatVectorValues(field);
+      getVectorReader().search(field, target, knnCollector, acceptDocs);
     }
   }
 
