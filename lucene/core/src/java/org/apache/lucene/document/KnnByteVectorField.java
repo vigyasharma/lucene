@@ -38,13 +38,16 @@ import org.apache.lucene.search.Query;
  */
 public class KnnByteVectorField extends Field {
 
-  private static FieldType createType(byte[] v, VectorSimilarityFunction similarityFunction) {
+  private static FieldType createType(byte[] v, VectorSimilarityFunction similarityFunction, int dimension) {
     if (v == null) {
       throw new IllegalArgumentException("vector value must not be null");
     }
-    int dimension = v.length;
     if (dimension == 0) {
       throw new IllegalArgumentException("cannot index an empty vector");
+    }
+    if (v.length % dimension != 0) {
+      throw new IllegalArgumentException("vector value must have a dimension of "
+          + dimension + ". For multi-vectors, all vector values should have the same configured dimension");
     }
     if (similarityFunction == null) {
       throw new IllegalArgumentException("similarity function must not be null");
@@ -83,7 +86,28 @@ public class KnnByteVectorField extends Field {
   }
 
   /**
-   * Creates a numeric vector field. Fields are single-valued: each document has either one value or
+   * Creates a numeric vector field. Fields are single-valued or multi-valued. For multi-vectors,
+   * the constructor accepts a single byte[] with all vector values are packed adjacent to each other.
+   * Vectors of a single field share the same dimension and similarity function. For multi-valued vectors,
+   * all vectors share the same dimension.
+   * Note that some vector similarities (like {@link VectorSimilarityFunction#DOT_PRODUCT}) require values to
+   * be constant-length.
+   *
+   * @param name field name
+   * @param vector value
+   * @param similarityFunction a function defining vector proximity.
+   * @param dimension vector dimension
+   * @throws IllegalArgumentException if any parameter is null, or the vector is empty or has
+   *     dimension &gt; 1024.
+   */
+  public KnnByteVectorField(
+      String name, byte[] vector, VectorSimilarityFunction similarityFunction, int dimension) {
+    super(name, createType(vector, similarityFunction, dimension));
+    fieldsData = vector; // null-check done above
+  }
+
+  /**
+   * Creates a numeric single-valued vector field: each document has either one value or
    * no value. Vectors of a single field share the same dimension and similarity function. Note that
    * some vector similarities (like {@link VectorSimilarityFunction#DOT_PRODUCT}) require values to
    * be constant-length.
@@ -96,7 +120,7 @@ public class KnnByteVectorField extends Field {
    */
   public KnnByteVectorField(
       String name, byte[] vector, VectorSimilarityFunction similarityFunction) {
-    super(name, createType(vector, similarityFunction));
+    super(name, createType(vector, similarityFunction, vector.length));
     fieldsData = vector; // null-check done above
   }
 
@@ -115,8 +139,7 @@ public class KnnByteVectorField extends Field {
   }
 
   /**
-   * Creates a numeric vector field. Fields are single-valued: each document has either one value or
-   * no value. Vectors of a single field share the same dimension and similarity function.
+   * Creates a numeric vector field using configured {@link FieldType}.
    *
    * @param name field name
    * @param vector value
@@ -134,7 +157,7 @@ public class KnnByteVectorField extends Field {
               + fieldType.vectorEncoding());
     }
     Objects.requireNonNull(vector, "vector value must not be null");
-    if (vector.length != fieldType.vectorDimension()) {
+    if (vector.length % fieldType.vectorDimension() != 0) {
       throw new IllegalArgumentException(
           "The number of vector dimensions does not match the field type");
     }
@@ -155,7 +178,7 @@ public class KnnByteVectorField extends Field {
     if (value == null) {
       throw new IllegalArgumentException("value must not be null");
     }
-    if (value.length != type.vectorDimension()) {
+    if (value.length % type.vectorDimension() != 0) {
       throw new IllegalArgumentException(
           "value length " + value.length + " must match field dimension " + type.vectorDimension());
     }
