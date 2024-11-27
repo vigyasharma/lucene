@@ -182,6 +182,6 @@ public class KnnFloatVectorField extends Field {
       throw new IllegalArgumentException(
           "value length " + value.length + " must match field dimension " + type.vectorDimension());
     }
-    fieldsData = value;
+    fieldsData = VectorUtil.checkFinite(value);
   }
 }
