@@ -17,7 +17,6 @@
 
 package org.apache.lucene.codecs.lucene99;
 
-import static org.apache.lucene.codecs.KnnVectorsWriter.MergedVectorValues.hasVectorValues;
 import static org.apache.lucene.codecs.lucene99.Lucene99HnswVectorsFormat.DIRECT_MONOTONIC_BLOCK_SHIFT;
 import static org.apache.lucene.codecs.lucene99.Lucene99HnswVectorsReader.SIMILARITY_FUNCTIONS;
 
@@ -25,26 +24,23 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Objects;
 import org.apache.lucene.codecs.CodecUtil;
 import org.apache.lucene.codecs.KnnFieldVectorsWriter;
 import org.apache.lucene.codecs.KnnVectorsWriter;
-import org.apache.lucene.codecs.hnsw.FlatFieldVectorsWriter;
 import org.apache.lucene.codecs.hnsw.FlatVectorsScorer;
 import org.apache.lucene.codecs.hnsw.FlatVectorsWriter;
-import org.apache.lucene.index.ByteVectorValues;
 import org.apache.lucene.index.DocsWithFieldSet;
 import org.apache.lucene.index.FieldInfo;
-import org.apache.lucene.index.FloatVectorValues;
 import org.apache.lucene.index.IndexFileNames;
-import org.apache.lucene.index.KnnVectorValues;
 import org.apache.lucene.index.MergeState;
 import org.apache.lucene.index.SegmentWriteState;
 import org.apache.lucene.index.Sorter;
-import org.apache.lucene.index.VectorEncoding;
 import org.apache.lucene.index.VectorSimilarityFunction;
+import org.apache.lucene.search.DocIdSetIterator;
 import org.apache.lucene.search.TaskExecutor;
 import org.apache.lucene.store.IndexOutput;
+import org.apache.lucene.util.ByteMultiVectorValue;
+import org.apache.lucene.util.FloatMultiVectorValue;
 import org.apache.lucene.util.IOUtils;
 import org.apache.lucene.util.InfoStream;
 import org.apache.lucene.util.RamUsageEstimator;
@@ -57,6 +53,7 @@ import org.apache.lucene.util.hnsw.HnswGraphMerger;
 import org.apache.lucene.util.hnsw.IncrementalHnswGraphMerger;
 import org.apache.lucene.util.hnsw.NeighborArray;
 import org.apache.lucene.util.hnsw.OnHeapHnswGraph;
+import org.apache.lucene.util.hnsw.RandomAccessVectorValues;
 import org.apache.lucene.util.hnsw.RandomVectorScorerSupplier;
 import org.apache.lucene.util.packed.DirectMonotonicWriter;
 
@@ -132,16 +129,24 @@ public final class Lucene99HnswVectorsWriter extends KnnVectorsWriter {
 
   @Override
   public KnnFieldVectorsWriter<?> addField(FieldInfo fieldInfo) throws IOException {
-    FieldWriter<?> newField =
-        FieldWriter.create(
-            flatVectorWriter.getFlatVectorScorer(),
-            flatVectorWriter.addField(fieldInfo),
-            fieldInfo,
-            M,
-            beamWidth,
-            segmentWriteState.infoStream);
+    FieldWriter<?> newField;
+    if (fieldInfo.hasMultiVectorValues()) {
+      newField = FieldWriter.createMultiVectorWriter(
+          flatVectorWriter.getFlatVectorScorer(),
+          fieldInfo,
+          M,
+          beamWidth,
+          segmentWriteState.infoStream);
+    } else {
+      newField = FieldWriter.create(
+          flatVectorWriter.getFlatVectorScorer(),
+          fieldInfo,
+          M,
+          beamWidth,
+          segmentWriteState.infoStream);
+    }
     fields.add(newField);
-    return newField;
+    return flatVectorWriter.addField(fieldInfo, newField);
   }
 
   @Override
@@ -177,8 +182,8 @@ public final class Lucene99HnswVectorsWriter extends KnnVectorsWriter {
   @Override
   public long ramBytesUsed() {
     long total = SHALLOW_RAM_BYTES_USED;
+    total += flatVectorWriter.ramBytesUsed();
     for (FieldWriter<?> field : fields) {
-      // the field tracks the delegate field usage
       total += field.ramBytesUsed();
     }
     return total;
@@ -195,19 +200,36 @@ public final class Lucene99HnswVectorsWriter extends KnnVectorsWriter {
         fieldData.fieldInfo,
         vectorIndexOffset,
         vectorIndexLength,
-        fieldData.getDocsWithFieldSet().cardinality(),
+        fieldData.docsWithField.cardinality(),
         graph,
         graphLevelNodeOffsets);
   }
 
   private void writeSortingField(FieldWriter<?> fieldData, Sorter.DocMap sortMap)
       throws IOException {
-    final int[] ordMap =
-        new int[fieldData.getDocsWithFieldSet().cardinality()]; // new ord to old ord
-    final int[] oldOrdMap =
-        new int[fieldData.getDocsWithFieldSet().cardinality()]; // old ord to new ord
-
-    mapOldOrdToNewOrd(fieldData.getDocsWithFieldSet(), sortMap, oldOrdMap, ordMap, null);
+    final int[] docIdOffsets = new int[sortMap.size()];
+    int offset = 1; // 0 means no vector for this (field, document)
+    DocIdSetIterator iterator = fieldData.docsWithField.iterator();
+    for (int docID = iterator.nextDoc();
+        docID != DocIdSetIterator.NO_MORE_DOCS;
+        docID = iterator.nextDoc()) {
+      int newDocID = sortMap.oldToNew(docID);
+      docIdOffsets[newDocID] = offset++;
+    }
+    DocsWithFieldSet newDocsWithField = new DocsWithFieldSet();
+    final int[] ordMap = new int[offset - 1]; // new ord to old ord
+    final int[] oldOrdMap = new int[offset - 1]; // old ord to new ord
+    int ord = 0;
+    int doc = 0;
+    for (int docIdOffset : docIdOffsets) {
+      if (docIdOffset != 0) {
+        ordMap[ord] = docIdOffset - 1;
+        oldOrdMap[docIdOffset - 1] = ord;
+        newDocsWithField.add(doc);
+        ord++;
+      }
+      doc++;
+    }
     // write graph
     long vectorIndexOffset = vectorIndex.getFilePointer();
     OnHeapHnswGraph graph = fieldData.getGraph();
@@ -219,7 +241,7 @@ public final class Lucene99HnswVectorsWriter extends KnnVectorsWriter {
         fieldData.fieldInfo,
         vectorIndexOffset,
         vectorIndexLength,
-        fieldData.getDocsWithFieldSet().cardinality(),
+        fieldData.docsWithField.cardinality(),
         mockGraph,
         graphLevelNodeOffsets);
   }
@@ -356,23 +378,19 @@ public final class Lucene99HnswVectorsWriter extends KnnVectorsWriter {
                     : new TaskExecutor(mergeState.intraMergeTaskExecutor),
                 numMergeWorkers);
         for (int i = 0; i < mergeState.liveDocs.length; i++) {
-          if (hasVectorValues(mergeState.fieldInfos[i], fieldInfo.name)) {
-            merger.addReader(
-                mergeState.knnVectorsReaders[i], mergeState.docMaps[i], mergeState.liveDocs[i]);
-          }
+          merger.addReader(
+              mergeState.knnVectorsReaders[i], mergeState.docMaps[i], mergeState.liveDocs[i]);
         }
-        KnnVectorValues mergedVectorValues = null;
+        DocIdSetIterator mergedVectorIterator = null;
         switch (fieldInfo.getVectorEncoding()) {
-          case BYTE ->
-              mergedVectorValues =
-                  KnnVectorsWriter.MergedVectorValues.mergeByteVectorValues(fieldInfo, mergeState);
-          case FLOAT32 ->
-              mergedVectorValues =
-                  KnnVectorsWriter.MergedVectorValues.mergeFloatVectorValues(fieldInfo, mergeState);
+          case BYTE -> mergedVectorIterator =
+              KnnVectorsWriter.MergedVectorValues.mergeByteVectorValues(fieldInfo, mergeState);
+          case FLOAT32 -> mergedVectorIterator =
+              KnnVectorsWriter.MergedVectorValues.mergeFloatVectorValues(fieldInfo, mergeState);
         }
         graph =
             merger.merge(
-                mergedVectorValues,
+                mergedVectorIterator,
                 segmentWriteState.infoStream,
                 scorerSupplier.totalVectorCount());
         vectorIndexNodeOffsets = writeGraph(graph);
@@ -535,69 +553,68 @@ public final class Lucene99HnswVectorsWriter extends KnnVectorsWriter {
         RamUsageEstimator.shallowSizeOfInstance(FieldWriter.class);
 
     private final FieldInfo fieldInfo;
+    private final DocsWithFieldSet docsWithField;
+    private final List<T> vectors;
     private final HnswGraphBuilder hnswGraphBuilder;
     private int lastDocID = -1;
-    private int ordinal;
-    private final FlatFieldVectorsWriter<T> flatFieldVectorsWriter;
+    private int node = 0;
 
-    @SuppressWarnings("unchecked")
     static FieldWriter<?> create(
-        FlatVectorsScorer scorer,
-        FlatFieldVectorsWriter<?> flatFieldVectorsWriter,
-        FieldInfo fieldInfo,
-        int M,
-        int beamWidth,
-        InfoStream infoStream)
+        FlatVectorsScorer scorer, FieldInfo fieldInfo, int M, int beamWidth, InfoStream infoStream)
         throws IOException {
+      if (fieldInfo.hasMultiVectorValues()) {
+        throw new IllegalStateException("Creating single-value vector writer for a multi-vector field");
+      }
       return switch (fieldInfo.getVectorEncoding()) {
-        case BYTE ->
-            new FieldWriter<>(
-                scorer,
-                (FlatFieldVectorsWriter<byte[]>) flatFieldVectorsWriter,
-                fieldInfo,
-                M,
-                beamWidth,
-                infoStream);
-        case FLOAT32 ->
-            new FieldWriter<>(
-                scorer,
-                (FlatFieldVectorsWriter<float[]>) flatFieldVectorsWriter,
-                fieldInfo,
-                M,
-                beamWidth,
-                infoStream);
+        case BYTE -> new FieldWriter<byte[]>(scorer, fieldInfo, M, beamWidth, infoStream);
+        case FLOAT32 -> new FieldWriter<float[]>(scorer, fieldInfo, M, beamWidth, infoStream);
+      };
+    }
+
+    static FieldWriter<?> createMultiVectorWriter(
+      FlatVectorsScorer scorer, FieldInfo fieldInfo, int M, int beamWidth, InfoStream infoStream)
+      throws IOException {
+      if (fieldInfo.hasMultiVectorValues() == false) {
+        throw new IllegalStateException("creating multi-vector writer for a single-value vector field");
+      }
+
+      return switch (fieldInfo.getVectorEncoding()) {
+        case BYTE -> new FieldWriter<ByteMultiVectorValue>(scorer, fieldInfo, M, beamWidth, infoStream);
+        case FLOAT32 -> new FieldWriter<FloatMultiVectorValue>(scorer, fieldInfo, M, beamWidth, infoStream);
       };
     }
 
     @SuppressWarnings("unchecked")
     FieldWriter(
-        FlatVectorsScorer scorer,
-        FlatFieldVectorsWriter<T> flatFieldVectorsWriter,
-        FieldInfo fieldInfo,
-        int M,
-        int beamWidth,
-        InfoStream infoStream)
+        FlatVectorsScorer scorer, FieldInfo fieldInfo, int M, int beamWidth, InfoStream infoStream)
         throws IOException {
       this.fieldInfo = fieldInfo;
+      this.docsWithField = new DocsWithFieldSet();
+      vectors = new ArrayList<>();
       RandomVectorScorerSupplier scorerSupplier =
           switch (fieldInfo.getVectorEncoding()) {
-            case BYTE ->
+            case BYTE -> fieldInfo.hasMultiVectorValues() ?
+              scorer.getRandomMultiVectorScorerSupplier(
+                fieldInfo.getMultiVectorSimilarityFunction(),
+                RandomAccessVectorValues.fromByteMultiVectors(
+                  (List<ByteMultiVectorValue>) vectors, fieldInfo.getVectorDimension())) :
+              scorer.getRandomVectorScorerSupplier(
+                fieldInfo.getVectorSimilarityFunction(),
+                RandomAccessVectorValues.fromBytes(
+                    (List<byte[]>) vectors, fieldInfo.getVectorDimension()));
+            case FLOAT32 -> fieldInfo.hasMultiVectorValues() ?
+                scorer.getRandomMultiVectorScorerSupplier(
+                  fieldInfo.getMultiVectorSimilarityFunction(),
+                  RandomAccessVectorValues.fromFloatMultiVectors(
+                      (List<FloatMultiVectorValue>) vectors, fieldInfo.getVectorDimension())) :
                 scorer.getRandomVectorScorerSupplier(
-                    fieldInfo.getVectorSimilarityFunction(),
-                    ByteVectorValues.fromBytes(
-                        (List<byte[]>) flatFieldVectorsWriter.getVectors(),
-                        fieldInfo.getVectorDimension()));
-            case FLOAT32 ->
-                scorer.getRandomVectorScorerSupplier(
-                    fieldInfo.getVectorSimilarityFunction(),
-                    FloatVectorValues.fromFloats(
-                        (List<float[]>) flatFieldVectorsWriter.getVectors(),
-                        fieldInfo.getVectorDimension()));
+                  fieldInfo.getVectorSimilarityFunction(),
+                    RandomAccessVectorValues.fromFloats(
+                        (List<float[]>) vectors, fieldInfo.getVectorDimension()));
           };
       hnswGraphBuilder =
           HnswGraphBuilder.create(scorerSupplier, M, beamWidth, HnswGraphBuilder.randSeed);
       hnswGraphBuilder.setInfoStream(infoStream);
-      this.flatFieldVectorsWriter = Objects.requireNonNull(flatFieldVectorsWriter);
     }
 
     @Override
@@ -606,37 +623,14 @@ public final class Lucene99HnswVectorsWriter extends KnnVectorsWriter {
         throw new IllegalArgumentException(
             "VectorValuesField \""
                 + fieldInfo.name
-                + "\" appears more than once in this document (only one value is allowed per field). "
-                + "Multi-Vectors are accepted as a single array of packed vector values.");
+                + "\" appears more than once in this document (only one value is allowed per field)");
       }
-      flatFieldVectorsWriter.addValue(docID, vectorValue);
-
-      int dimension = fieldInfo.getVectorDimension();
-      int vectorLength = fieldInfo.getVectorEncoding() == VectorEncoding.BYTE ?
-          ((byte[]) vectorValue).length : ((float[]) vectorValue).length;
-      if (vectorLength % dimension != 0) {
-        throw new IllegalArgumentException("Vector value does not matched configured vector dimension."
-            + " All vectors for a multi-vector should have the same dimension.");
-      }
-
-      /** Each document with a vector is assigned a new ordinal. Multiple vector values within a
-       * document share the same ordinal, and have a unique subordinal. Single-valued fields have a single
-       * vector value with subOrdinal = 0.
-       * We pack the ordinal and subOrdinal to MSB and LSB for a long nodeId respectively.
-       */
-      int numVectors = vectorLength / dimension;
-      long nodeId = 0;
-      for (int subOrdinal = 0; subOrdinal < numVectors; subOrdinal++) {
-        nodeId = ((long) ordinal << 32) | subOrdinal;
-      }
-
-      hnswGraphBuilder.addGraphNode(nodeId);
-      ordinal++;
+      assert docID > lastDocID;
+      vectors.add(vectorValue);
+      docsWithField.add(docID);
+      hnswGraphBuilder.addGraphNode(node);
+      node++;
       lastDocID = docID;
-    }
-
-    public DocsWithFieldSet getDocsWithFieldSet() {
-      return flatFieldVectorsWriter.getDocsWithFieldSet();
     }
 
     @Override
@@ -644,10 +638,9 @@ public final class Lucene99HnswVectorsWriter extends KnnVectorsWriter {
       throw new UnsupportedOperationException();
     }
 
-    OnHeapHnswGraph getGraph() throws IOException {
-      assert flatFieldVectorsWriter.isFinished();
-      if (ordinal > 0) {
-        return hnswGraphBuilder.getCompletedGraph();
+    OnHeapHnswGraph getGraph() {
+      if (node > 0) {
+        return hnswGraphBuilder.getGraph();
       } else {
         return null;
       }
@@ -656,7 +649,9 @@ public final class Lucene99HnswVectorsWriter extends KnnVectorsWriter {
     @Override
     public long ramBytesUsed() {
       return SHALLOW_SIZE
-          + flatFieldVectorsWriter.ramBytesUsed()
+          + docsWithField.ramBytesUsed()
+          + (long) vectors.size()
+              * (RamUsageEstimator.NUM_BYTES_OBJECT_REF + RamUsageEstimator.NUM_BYTES_ARRAY_HEADER)
           + hnswGraphBuilder.getGraph().ramBytesUsed();
     }
   }
