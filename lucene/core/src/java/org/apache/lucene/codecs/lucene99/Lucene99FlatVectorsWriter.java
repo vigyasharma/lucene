@@ -446,7 +446,8 @@ public final class Lucene99FlatVectorsWriter extends FlatVectorsWriter {
         throw new IllegalArgumentException(
             "VectorValuesField \""
                 + fieldInfo.name
-                + "\" appears more than once in this document (only one value is allowed per field)");
+                + "\" appears more than once in this document (only one value is allowed per field)."
+                + "Multi-Vectors are accepted as a single array of packed vector values.");
       }
       assert docID > lastDocID;
       T copy = copyValue(vectorValue);
