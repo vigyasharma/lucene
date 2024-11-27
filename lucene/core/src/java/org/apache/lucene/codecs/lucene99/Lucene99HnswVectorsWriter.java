@@ -41,6 +41,7 @@ import org.apache.lucene.index.KnnVectorValues;
 import org.apache.lucene.index.MergeState;
 import org.apache.lucene.index.SegmentWriteState;
 import org.apache.lucene.index.Sorter;
+import org.apache.lucene.index.VectorEncoding;
 import org.apache.lucene.index.VectorSimilarityFunction;
 import org.apache.lucene.search.TaskExecutor;
 import org.apache.lucene.store.IndexOutput;
@@ -536,7 +537,7 @@ public final class Lucene99HnswVectorsWriter extends KnnVectorsWriter {
     private final FieldInfo fieldInfo;
     private final HnswGraphBuilder hnswGraphBuilder;
     private int lastDocID = -1;
-    private int node = 0;
+    private int ordinal;
     private final FlatFieldVectorsWriter<T> flatFieldVectorsWriter;
 
     @SuppressWarnings("unchecked")
@@ -605,11 +606,32 @@ public final class Lucene99HnswVectorsWriter extends KnnVectorsWriter {
         throw new IllegalArgumentException(
             "VectorValuesField \""
                 + fieldInfo.name
-                + "\" appears more than once in this document (only one value is allowed per field)");
+                + "\" appears more than once in this document (only one value is allowed per field). "
+                + "Multi-Vectors are accepted as a single array of packed vector values.");
       }
       flatFieldVectorsWriter.addValue(docID, vectorValue);
-      hnswGraphBuilder.addGraphNode(node);
-      node++;
+
+      int dimension = fieldInfo.getVectorDimension();
+      int vectorLength = fieldInfo.getVectorEncoding() == VectorEncoding.BYTE ?
+          ((byte[]) vectorValue).length : ((float[]) vectorValue).length;
+      if (vectorLength % dimension != 0) {
+        throw new IllegalArgumentException("Vector value does not matched configured vector dimension."
+            + " All vectors for a multi-vector should have the same dimension.");
+      }
+
+      /** Each document with a vector is assigned a new ordinal. Multiple vector values within a
+       * document share the same ordinal, and have a unique subordinal. Single-valued fields have a single
+       * vector value with subOrdinal = 0.
+       * We pack the ordinal and subOrdinal to MSB and LSB for a long nodeId respectively.
+       */
+      int numVectors = vectorLength / dimension;
+      long nodeId = 0;
+      for (int subOrdinal = 0; subOrdinal < numVectors; subOrdinal++) {
+        nodeId = ((long) ordinal << 32) | subOrdinal;
+      }
+
+      hnswGraphBuilder.addGraphNode(nodeId);
+      ordinal++;
       lastDocID = docID;
     }
 
@@ -624,7 +646,7 @@ public final class Lucene99HnswVectorsWriter extends KnnVectorsWriter {
 
     OnHeapHnswGraph getGraph() throws IOException {
       assert flatFieldVectorsWriter.isFinished();
-      if (node > 0) {
+      if (ordinal > 0) {
         return hnswGraphBuilder.getCompletedGraph();
       } else {
         return null;
