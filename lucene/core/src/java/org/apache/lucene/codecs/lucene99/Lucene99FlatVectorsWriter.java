@@ -167,20 +167,54 @@ public final class Lucene99FlatVectorsWriter extends FlatVectorsWriter {
         fieldData.fieldInfo, maxDoc, vectorDataOffset, vectorDataLength, fieldData.docsWithField);
   }
 
+
   private void writeFloat32Vectors(FieldWriter<?> fieldData) throws IOException {
-    final ByteBuffer buffer =
-        ByteBuffer.allocate(fieldData.dim * Float.BYTES).order(ByteOrder.LITTLE_ENDIAN);
+//    final ByteBuffer buffer =
+//        ByteBuffer.allocate(fieldData.dim * Float.BYTES).order(ByteOrder.LITTLE_ENDIAN);
+//    for (Object v : fieldData.vectors) {
+//      buffer.asFloatBuffer().put((float[]) v);
+//      vectorData.writeBytes(buffer.array(), buffer.array().length);
+//    }
+
+    int ordinal = 0;
+    ByteBuffer buffer = null;
+    fieldData.dataOffsets = new long[fieldData.vectors.size() + 1];
     for (Object v : fieldData.vectors) {
-      buffer.asFloatBuffer().put((float[]) v);
-      vectorData.writeBytes(buffer.array(), buffer.array().length);
+//    for (int i = 0; i < fieldData.vectors.size(); i++) {
+      float[] vector = (float[])v;
+      if (fieldData.hasMultiVectors == false) {
+        assert vector.length == fieldData.dim;
+      }
+      final int vectorByteLength = vector.length * VectorEncoding.FLOAT32.byteSize;
+      if (buffer == null || buffer.capacity() < vectorByteLength) {
+        buffer = ByteBuffer.allocate(vectorByteLength).order(ByteOrder.LITTLE_ENDIAN);
+      }
+      buffer.asFloatBuffer().put(vector);
+      fieldData.dataOffsets[ordinal++] = vectorData.getFilePointer(); // start pointer for ordinal
+      vectorData.writeBytes(buffer.array(), vectorByteLength);
+      buffer.clear();
     }
+
+    // TODO: maintain dataOffsets only if multi-vectors present
+    assert ordinal == fieldData.vectors.size()
+        : "ordinal=" + ordinal + "!=" + "fieldData.vectors.size()=" + fieldData.vectors.size();
+    fieldData.dataOffsets[ordinal] = vectorData.getFilePointer(); // end pointer for last ordinal
   }
 
   private void writeByteVectors(FieldWriter<?> fieldData) throws IOException {
+    int ordinal = 0;
+    fieldData.dataOffsets = new long[fieldData.vectors.size() + 1];
     for (Object v : fieldData.vectors) {
       byte[] vector = (byte[]) v;
+      if (fieldData.hasMultiVectors == false) {
+        assert vector.length == fieldData.dim;
+      }
+      fieldData.dataOffsets[ordinal++] = vectorData.getFilePointer(); // start pointer for ordinal
       vectorData.writeBytes(vector, vector.length);
     }
+    assert ordinal == fieldData.vectors.size()
+        : "end ordinal:" + ordinal + "!=" + "fieldData.vectors.size()=" + fieldData.vectors.size();
+    fieldData.dataOffsets[ordinal] = vectorData.getFilePointer(); // end pointer for last ordinal
   }
 
   private void writeSortingField(FieldWriter<?> fieldData, int maxDoc, Sorter.DocMap sortMap)
@@ -407,6 +441,13 @@ public final class Lucene99FlatVectorsWriter extends FlatVectorsWriter {
     private final List<T> vectors;
     private boolean finished;
 
+    private boolean hasMultiVectors = false;
+    /* Stores start and end offsets for the packed vector data written for each multi-vector value.
+     * dataOffsets[ordinal] holds the start offset. dataOffsets[ordinal+1] holds the end offset.
+     * Initialized before writing multi-vector fields.
+     */
+    private long[] dataOffsets = null;
+
     private int lastDocID = -1;
 
     static FieldWriter<?> create(FieldInfo fieldInfo) {
@@ -416,14 +457,14 @@ public final class Lucene99FlatVectorsWriter extends FlatVectorsWriter {
             new Lucene99FlatVectorsWriter.FieldWriter<byte[]>(fieldInfo) {
               @Override
               public byte[] copyValue(byte[] value) {
-                return ArrayUtil.copyOfSubArray(value, 0, dim);
+                return ArrayUtil.copyOfSubArray(value, 0, value.length);
               }
             };
         case FLOAT32 ->
             new Lucene99FlatVectorsWriter.FieldWriter<float[]>(fieldInfo) {
               @Override
               public float[] copyValue(float[] value) {
-                return ArrayUtil.copyOfSubArray(value, 0, dim);
+                return ArrayUtil.copyOfSubArray(value, 0, value.length);
               }
             };
       };
@@ -450,6 +491,16 @@ public final class Lucene99FlatVectorsWriter extends FlatVectorsWriter {
                 + "Multi-Vectors are accepted as a single array of packed vector values.");
       }
       assert docID > lastDocID;
+      int vectorLength = fieldInfo.getVectorEncoding() == VectorEncoding.BYTE ?
+          ((byte[]) vectorValue).length : ((float[]) vectorValue).length;
+      if (vectorLength % dim != 0) {
+        throw new IllegalArgumentException("Vector value does not matched configured vector dimension."
+            + " All vectors for a multi-vector should have the same dimension.");
+      }
+      if (vectorLength > dim) {
+        hasMultiVectors = true;
+      }
+
       T copy = copyValue(vectorValue);
       docsWithField.add(docID);
       vectors.add(copy);
