@@ -302,6 +302,7 @@ public final class Lucene99FlatVectorsWriter extends FlatVectorsWriter {
         docsWithField);
   }
 
+  // Pending: adapt to multiVectors
   @Override
   public CloseableRandomVectorScorerSupplier mergeOneFieldToIndex(
       FieldInfo fieldInfo, MergeState mergeState) throws IOException {
@@ -386,6 +387,7 @@ public final class Lucene99FlatVectorsWriter extends FlatVectorsWriter {
     }
   }
 
+  // Pending: write docOffsets for multiVectors
   private void writeMeta(
       FieldInfo field,
       int maxDoc,
@@ -411,6 +413,7 @@ public final class Lucene99FlatVectorsWriter extends FlatVectorsWriter {
    * Writes the byte vector values to the output and returns a set of documents that contains
    * vectors.
    */
+  // Pending: Update to use getAllVectorValues(long nodeId);
   private static DocsWithFieldSet writeByteVectorData(
       IndexOutput output, ByteVectorValues byteVectorValues) throws IOException {
     DocsWithFieldSet docsWithField = new DocsWithFieldSet();
@@ -428,6 +431,7 @@ public final class Lucene99FlatVectorsWriter extends FlatVectorsWriter {
   /**
    * Writes the vector values to the output and returns a set of documents that contains vectors.
    */
+  // Pending: update to use getAllVectorValues() for nodeId
   private static DocsWithFieldSet writeVectorData(
       IndexOutput output, FloatVectorValues floatVectorValues) throws IOException {
     DocsWithFieldSet docsWithField = new DocsWithFieldSet();
@@ -529,13 +533,17 @@ public final class Lucene99FlatVectorsWriter extends FlatVectorsWriter {
     public long ramBytesUsed() {
       long size = SHALLOW_RAM_BYTES_USED;
       if (vectors.size() == 0) return size;
+      for (T vector : vectors) {
+        if (fieldInfo.getVectorEncoding() == VectorEncoding.BYTE) {
+          size += (long) ((byte[]) vector).length * fieldInfo.getVectorEncoding().byteSize;
+        } else {
+          size += (long) ((float[]) vector).length * fieldInfo.getVectorEncoding().byteSize;
+        }
+      }
       return size
           + docsWithField.ramBytesUsed()
           + (long) vectors.size()
-              * (RamUsageEstimator.NUM_BYTES_OBJECT_REF + RamUsageEstimator.NUM_BYTES_ARRAY_HEADER)
-          + (long) vectors.size()
-              * fieldInfo.getVectorDimension()
-              * fieldInfo.getVectorEncoding().byteSize;
+              * (RamUsageEstimator.NUM_BYTES_OBJECT_REF + RamUsageEstimator.NUM_BYTES_ARRAY_HEADER);
     }
 
     @Override
