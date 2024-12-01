@@ -238,22 +238,40 @@ public final class Lucene99FlatVectorsWriter extends FlatVectorsWriter {
   private long writeSortedFloat32Vectors(FieldWriter<?> fieldData, int[] ordMap)
       throws IOException {
     long vectorDataOffset = vectorData.alignFilePointer(Float.BYTES);
-    final ByteBuffer buffer =
-        ByteBuffer.allocate(fieldData.dim * Float.BYTES).order(ByteOrder.LITTLE_ENDIAN);
+    int newOrd = 0;
+    ByteBuffer buffer = null;
+    fieldData.dataOffsets = new long[fieldData.vectors.size() + 1];
     for (int ordinal : ordMap) {
       float[] vector = (float[]) fieldData.vectors.get(ordinal);
+      final int vectorByteLength = vector.length * VectorEncoding.FLOAT32.byteSize;
+      if (buffer == null || buffer.capacity() < vectorByteLength) {
+        buffer = ByteBuffer.allocate(vectorByteLength).order(ByteOrder.LITTLE_ENDIAN);
+      }
       buffer.asFloatBuffer().put(vector);
-      vectorData.writeBytes(buffer.array(), buffer.array().length);
+      fieldData.dataOffsets[newOrd++] = vectorData.getFilePointer(); // start offset for ordinal
+      vectorData.writeBytes(buffer.array(), vectorByteLength);
+      buffer.clear();
     }
+    // TODO: skip calculating dataOffsets for multiVectors?
+    assert newOrd == fieldData.vectors.size()
+        : "ordinal end =" + newOrd + ", expected =" + fieldData.vectors.size();
+    fieldData.dataOffsets[newOrd] = vectorData.getFilePointer(); // end offset for last subOrdinal
     return vectorDataOffset;
   }
 
   private long writeSortedByteVectors(FieldWriter<?> fieldData, int[] ordMap) throws IOException {
     long vectorDataOffset = vectorData.alignFilePointer(Float.BYTES);
+    int newOrd = 0;
+    fieldData.dataOffsets = new long[fieldData.vectors.size() + 1];
     for (int ordinal : ordMap) {
       byte[] vector = (byte[]) fieldData.vectors.get(ordinal);
+      fieldData.dataOffsets[newOrd++] = vectorData.getFilePointer(); // start offset for ordinal
       vectorData.writeBytes(vector, vector.length);
     }
+    // TODO: skip calculating dataOffsets for multiVectors?
+    assert newOrd == fieldData.vectors.size()
+        : "ordinal end =" + newOrd + ", expected =" + fieldData.vectors.size();
+    fieldData.dataOffsets[newOrd] = vectorData.getFilePointer(); // end offset for last subOrdinal
     return vectorDataOffset;
   }
 
