@@ -303,6 +303,9 @@ public final class Lucene99FlatVectorsWriter extends FlatVectorsWriter {
   }
 
   // Pending: adapt to multiVectors
+  // we write all vectors to a temp file, then copy that file into vectorData
+  // for multiVec, we need to 1) calc. their data offsets, 2) shift their data offsets when
+  // vectors are copied into vectorData 3) pass these dataOffsets to vectorValues() and scorers.
   @Override
   public CloseableRandomVectorScorerSupplier mergeOneFieldToIndex(
       FieldInfo fieldInfo, MergeState mergeState) throws IOException {
