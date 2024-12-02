@@ -20,6 +20,7 @@ import java.io.IOException;
 import java.util.List;
 import org.apache.lucene.document.KnnByteVectorField;
 import org.apache.lucene.search.VectorScorer;
+import org.apache.lucene.util.ArrayUtil;
 
 /**
  * This class provides access to per-document floating point vector values indexed as {@link
@@ -33,12 +34,24 @@ public abstract class ByteVectorValues extends KnnVectorValues {
   protected ByteVectorValues() {}
 
   /**
-   * Return the vector value for the given vector ordinal which must be in [0, size() - 1],
+   * Return the vector value for the given vector node id which must be in [0, maxGraphNode],
    * otherwise IndexOutOfBoundsException is thrown. The returned array may be shared across calls.
    *
    * @return the vector value
    */
-  public abstract byte[] vectorValue(int ord) throws IOException;
+  public abstract byte[] vectorValue(long nodeId) throws IOException;
+
+  /**
+   * Each graph nodeId is a long with ordinal and subOrdinal values packed in
+   * MSB and LSB respectively. This API returns all vector values for the ordinal represented
+   * by 32 MSB of the nodeId. All subOrdinal vector values are concatenated in a single byte[] array.
+   * For single-vector fields, the returned value is same as vectorValue().
+   */
+  public byte[] getAllVectorValues(long nodeId) throws IOException {
+    return getAllVectorValues(ordinal(nodeId));
+  }
+
+  protected abstract byte[] getAllVectorValues(int ordinal) throws IOException;
 
   @Override
   public abstract ByteVectorValues copy() throws IOException;
@@ -99,8 +112,21 @@ public abstract class ByteVectorValues extends KnnVectorValues {
       }
 
       @Override
-      public byte[] vectorValue(int targetOrd) {
-        return vectors.get(targetOrd);
+      public byte[] getAllVectorValues(int ordinal) {
+        return vectors.get(ordinal);
+      }
+
+      @Override
+      public byte[] vectorValue(long nodeId) {
+        int ord = ordinal(nodeId);
+        byte[] packedVector = vectors.get(ord);
+        if (packedVector.length == dim) {
+          // single valued vector
+          return packedVector;
+        } else {
+          int subOrdinal = subOrdinal(nodeId);
+          return ArrayUtil.copyOfSubArray(packedVector, subOrdinal, dim);
+        }
       }
 
       @Override

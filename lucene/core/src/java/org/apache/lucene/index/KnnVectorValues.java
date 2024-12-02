@@ -50,6 +50,31 @@ public abstract class KnnVectorValues {
   }
 
   /**
+   * Return the docid of the document indexed for the given graph nodeId.
+   */
+  public int ordToDoc(long nodeId) {
+    return ordToDoc(ordinal(nodeId));
+  }
+
+  /**
+   * Return ordinal component of a given vector ANN graph nodeId.
+   * Each graph nodeId is a long with ordinal and subOrdinal values packed
+   * in MSB and LSB respectively. This API returns the ordinal value as an int.
+   */
+  public int ordinal(long nodeId) {
+    return ((int) (nodeId >> 32));
+  }
+
+  /**
+   * Return subOrdinal component of a given vector ANN graph nodeId.
+   * Each graph nodeId is a long with ordinal and subOrdinal values packed
+   * in MSB and LSB respectively. This API returns the subOrdinal value as an int.
+   */
+  public int subOrdinal(long nodeId) {
+    return (int)(nodeId & 0xFFFFFFFFL);
+  }
+
+  /**
    * Creates a new copy of this {@link KnnVectorValues}. This is helpful when you need to access
    * different values at once, to avoid overwriting the underlying vector returned.
    */
