@@ -34,24 +34,31 @@ public abstract class FloatVectorValues extends KnnVectorValues {
   protected FloatVectorValues() {}
 
   /**
-   * Return the vector value for the given vector ordinal which must be in [0, maxGraphNode],
-   * otherwise IndexOutOfBoundsException is thrown. The returned array may be shared across calls.
-   *
-   * @return the vector value
-   */
-  public abstract float[] vectorValue(long nodeId) throws IOException;
-
-  /**
+   * Returns all vector values for a given ordinal.
+   * <p>
    * Each graph nodeId is a long with ordinal and subOrdinal values packed in
    * MSB and LSB respectively. This API returns all vector values for the ordinal represented
-   * by 32 MSB of the nodeId. All subOrdinal vector values are concatenated in a single float[] array.
-   * For single-vector fields, the returned value is same as vectorValue().
+   * by the 32 MSB of nodeId. The (subOrdinal) vector values are concatenated into a
+   * single float[] array.
+   * For single valued vectors, this API returns the single vector value corresponding to
+   * their ordinal.
+   * @return the vector value
    */
-  public float[] getAllVectorValues(long nodeId) throws IOException {
-    return getAllVectorValues(ordinal(nodeId));
-  }
+  public abstract float[] vectorValue(int ord) throws IOException;
 
-  protected abstract float[] getAllVectorValues(int ordinal) throws IOException;
+  /**
+   * Returns the single specific vector value corresponding to an (ordinal, subOrdinal) pair.
+   * @return vector value
+   */
+  public abstract float[] vectorValue(int ordinal, int subOrdinal) throws IOException;
+
+  /**
+   * Returns the single specific vector value corresponding to a nodeId.
+   * @return vector value
+   */
+  public float[] vectorValue(long nodeId) throws IOException {
+    return vectorValue(ordinal(nodeId), subOrdinal(nodeId));
+  }
 
   @Override
   public abstract FloatVectorValues copy() throws IOException;
@@ -113,21 +120,13 @@ public abstract class FloatVectorValues extends KnnVectorValues {
       }
 
       @Override
-      public float[] getAllVectorValues(int ordinal) {
-        return vectors.get(ordinal);
+      public float[] vectorValue(int targetOrd) {
+        return vectors.get(targetOrd);
       }
 
       @Override
-      public float[] vectorValue(long nodeId) {
-        int ord = ordinal(nodeId);
-        float[] packedVector = vectors.get(ord);
-        if (packedVector.length == dim) {
-          // single valued vector
-          return packedVector;
-        } else {
-          int subOrdinal = subOrdinal(nodeId);
-          return ArrayUtil.copyOfSubArray(packedVector, subOrdinal, dim);
-        }
+      public float[] vectorValue(int ordinal, int subOrdinal) {
+        return ArrayUtil.copyOfSubArray(vectorValue(ordinal), subOrdinal, dim);
       }
 
       @Override

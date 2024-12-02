@@ -34,24 +34,31 @@ public abstract class ByteVectorValues extends KnnVectorValues {
   protected ByteVectorValues() {}
 
   /**
-   * Return the vector value for the given vector node id which must be in [0, maxGraphNode],
-   * otherwise IndexOutOfBoundsException is thrown. The returned array may be shared across calls.
-   *
-   * @return the vector value
-   */
-  public abstract byte[] vectorValue(long nodeId) throws IOException;
-
-  /**
+   * Returns all vector values for a given ordinal.
+   * <p>
    * Each graph nodeId is a long with ordinal and subOrdinal values packed in
    * MSB and LSB respectively. This API returns all vector values for the ordinal represented
-   * by 32 MSB of the nodeId. All subOrdinal vector values are concatenated in a single byte[] array.
-   * For single-vector fields, the returned value is same as vectorValue().
+   * by the 32 MSB of nodeId. The (subOrdinal) vector values are concatenated into a
+   * single byte[] array.
+   * For single valued vectors, this API returns the single vector value corresponding to
+   * their ordinal.
+   * @return the vector value
    */
-  public byte[] getAllVectorValues(long nodeId) throws IOException {
-    return getAllVectorValues(ordinal(nodeId));
-  }
+  public abstract byte[] vectorValue(int ord) throws IOException;
 
-  protected abstract byte[] getAllVectorValues(int ordinal) throws IOException;
+  /**
+   * Returns the single specific vector value corresponding to an (ordinal, subOrdinal) pair.
+   * @return vector value
+   */
+  public abstract byte[] vectorValue(int ordinal, int subOrdinal) throws IOException;
+
+  /**
+   * Returns the single specific vector value corresponding to a nodeId.
+   * @return vector value
+   */
+  public byte[] vectorValue(long nodeId) throws IOException {
+    return vectorValue(ordinal(nodeId), subOrdinal(nodeId));
+  }
 
   @Override
   public abstract ByteVectorValues copy() throws IOException;
@@ -112,21 +119,13 @@ public abstract class ByteVectorValues extends KnnVectorValues {
       }
 
       @Override
-      public byte[] getAllVectorValues(int ordinal) {
-        return vectors.get(ordinal);
+      public byte[] vectorValue(int targetOrd) {
+        return vectors.get(targetOrd);
       }
 
       @Override
-      public byte[] vectorValue(long nodeId) {
-        int ord = ordinal(nodeId);
-        byte[] packedVector = vectors.get(ord);
-        if (packedVector.length == dim) {
-          // single valued vector
-          return packedVector;
-        } else {
-          int subOrdinal = subOrdinal(nodeId);
-          return ArrayUtil.copyOfSubArray(packedVector, subOrdinal, dim);
-        }
+      public byte[] vectorValue(int ordinal, int subOrdinal) {
+        return ArrayUtil.copyOfSubArray(vectorValue(ordinal), subOrdinal, dim);
       }
 
       @Override
