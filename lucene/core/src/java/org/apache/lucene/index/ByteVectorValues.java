@@ -50,7 +50,18 @@ public abstract class ByteVectorValues extends KnnVectorValues {
    * Returns the single specific vector value corresponding to an (ordinal, subOrdinal) pair.
    * @return vector value
    */
-  public abstract byte[] vectorValue(int ordinal, int subOrdinal) throws IOException;
+  public byte[] vectorValue(int ordinal, int subOrdinal) throws IOException {
+    byte[] packedValue = vectorValue(ordinal);
+    if (packedValue.length < (subOrdinal + 1) * dimension()) {
+      throw new ArrayIndexOutOfBoundsException("requested subOrdinal [" + subOrdinal + "] " +
+          "for vector ordinal [" + ordinal + "] is out of range.");
+    }
+    // optimize for single valued vector fields
+    if (packedValue.length == dimension()) {
+      return packedValue;
+    }
+    return ArrayUtil.copyOfSubArray(vectorValue(ordinal), subOrdinal, dimension());
+  }
 
   /**
    * Returns the single specific vector value corresponding to a nodeId.
@@ -121,11 +132,6 @@ public abstract class ByteVectorValues extends KnnVectorValues {
       @Override
       public byte[] vectorValue(int targetOrd) {
         return vectors.get(targetOrd);
-      }
-
-      @Override
-      public byte[] vectorValue(int ordinal, int subOrdinal) {
-        return ArrayUtil.copyOfSubArray(vectorValue(ordinal), subOrdinal, dim);
       }
 
       @Override

@@ -50,7 +50,18 @@ public abstract class FloatVectorValues extends KnnVectorValues {
    * Returns the single specific vector value corresponding to an (ordinal, subOrdinal) pair.
    * @return vector value
    */
-  public abstract float[] vectorValue(int ordinal, int subOrdinal) throws IOException;
+  public float[] vectorValue(int ordinal, int subOrdinal) throws IOException {
+    float[] packedValue = vectorValue(ordinal);
+    if (packedValue.length < (subOrdinal + 1) * dimension()) {
+      throw new ArrayIndexOutOfBoundsException("requested subOrdinal [" + subOrdinal + "] " +
+          "for vector ordinal [" + ordinal + "] is out of range.");
+    }
+    // optimize for single valued vector field
+    if (packedValue.length == dimension()) {
+      return packedValue;
+    }
+    return ArrayUtil.copyOfSubArray(vectorValue(ordinal), subOrdinal, dimension());
+  }
 
   /**
    * Returns the single specific vector value corresponding to a nodeId.
@@ -122,11 +133,6 @@ public abstract class FloatVectorValues extends KnnVectorValues {
       @Override
       public float[] vectorValue(int targetOrd) {
         return vectors.get(targetOrd);
-      }
-
-      @Override
-      public float[] vectorValue(int ordinal, int subOrdinal) {
-        return ArrayUtil.copyOfSubArray(vectorValue(ordinal), subOrdinal, dim);
       }
 
       @Override
