@@ -169,27 +169,15 @@ public final class Lucene99FlatVectorsWriter extends FlatVectorsWriter {
 
 
   private void writeFloat32Vectors(FieldWriter<?> fieldData) throws IOException {
-//    final ByteBuffer buffer =
-//        ByteBuffer.allocate(fieldData.dim * Float.BYTES).order(ByteOrder.LITTLE_ENDIAN);
-//    for (Object v : fieldData.vectors) {
-//      buffer.asFloatBuffer().put((float[]) v);
-//      vectorData.writeBytes(buffer.array(), buffer.array().length);
-//    }
-
     int ordinal = 0;
     ByteBuffer buffer = null;
     fieldData.dataOffsets = new long[fieldData.vectors.size() + 1];
     for (Object v : fieldData.vectors) {
-//    for (int i = 0; i < fieldData.vectors.size(); i++) {
       float[] vector = (float[])v;
       if (fieldData.hasMultiVectors == false) {
         assert vector.length == fieldData.dim;
       }
-      final int vectorByteLength = vector.length * VectorEncoding.FLOAT32.byteSize;
-      if (buffer == null || buffer.capacity() < vectorByteLength) {
-        buffer = ByteBuffer.allocate(vectorByteLength).order(ByteOrder.LITTLE_ENDIAN);
-      }
-      buffer.asFloatBuffer().put(vector);
+      final int vectorByteLength = resizeBufferAndWrite(buffer, vector);
       fieldData.dataOffsets[ordinal++] = vectorData.getFilePointer(); // start pointer for ordinal
       vectorData.writeBytes(buffer.array(), vectorByteLength);
       buffer.clear();
@@ -243,11 +231,7 @@ public final class Lucene99FlatVectorsWriter extends FlatVectorsWriter {
     fieldData.dataOffsets = new long[fieldData.vectors.size() + 1];
     for (int ordinal : ordMap) {
       float[] vector = (float[]) fieldData.vectors.get(ordinal);
-      final int vectorByteLength = vector.length * VectorEncoding.FLOAT32.byteSize;
-      if (buffer == null || buffer.capacity() < vectorByteLength) {
-        buffer = ByteBuffer.allocate(vectorByteLength).order(ByteOrder.LITTLE_ENDIAN);
-      }
-      buffer.asFloatBuffer().put(vector);
+      final int vectorByteLength = resizeBufferAndWrite(buffer, vector);
       fieldData.dataOffsets[newOrd++] = vectorData.getFilePointer(); // start offset for ordinal
       vectorData.writeBytes(buffer.array(), vectorByteLength);
       buffer.clear();
@@ -412,44 +396,75 @@ public final class Lucene99FlatVectorsWriter extends FlatVectorsWriter {
         DIRECT_MONOTONIC_BLOCK_SHIFT, meta, vectorData, count, maxDoc, docsWithField);
   }
 
-  /**
-   * Writes the byte vector values to the output and returns a set of documents that contains
-   * vectors.
-   */
-  // Pending: Update to use getAllVectorValues(long nodeId);
-  private static DocsWithFieldSet writeByteVectorData(
-      IndexOutput output, ByteVectorValues byteVectorValues) throws IOException {
-    DocsWithFieldSet docsWithField = new DocsWithFieldSet();
-    KnnVectorValues.DocIndexIterator iter = byteVectorValues.iterator();
-    for (int docV = iter.nextDoc(); docV != NO_MORE_DOCS; docV = iter.nextDoc()) {
-      // write vector
-      byte[] binaryValue = byteVectorValues.vectorValue(iter.index());
-      assert binaryValue.length == byteVectorValues.dimension() * VectorEncoding.BYTE.byteSize;
-      output.writeBytes(binaryValue, binaryValue.length);
-      docsWithField.add(docV);
+  /* Utility class to collect DocsWithFieldSet and DataOffsets for multi-vectors */
+  private record DocsAndOffsets(DocsWithFieldSet docsWithField, long[] dataOffsets) {
+    DocsAndOffsets {
+      assert dataOffsets == null || dataOffsets.length == docsWithField.cardinality() + 1;
     }
-    return docsWithField;
   }
 
   /**
-   * Writes the vector values to the output and returns a set of documents that contains vectors.
+   * Writes the byte vector values to the output.
+   * Returns {@link DocsAndOffsets}, a record of a set of documents with vectors,
+   * and dataOffsets for those vectors
    */
-  // Pending: update to use getAllVectorValues() for nodeId
-  private static DocsWithFieldSet writeVectorData(
+  private static DocsAndOffsets writeByteVectorData(
+      IndexOutput output, ByteVectorValues byteVectorValues) throws IOException {
+    DocsWithFieldSet docsWithField = new DocsWithFieldSet();
+    KnnVectorValues.DocIndexIterator iter = byteVectorValues.iterator();
+
+    int ordinal = 0;
+    long[] dataOffsets = new long[byteVectorValues.size()];
+    for (int docV = iter.nextDoc(); docV != NO_MORE_DOCS; docV = iter.nextDoc()) {
+      // write vector
+      byte[] binaryValue = byteVectorValues.vectorValue(iter.index());
+      dataOffsets[ordinal++] = output.getFilePointer();
+      output.writeBytes(binaryValue, binaryValue.length);
+      docsWithField.add(docV);
+    }
+    assert ordinal == byteVectorValues.size()
+        : "ordinal [" + ordinal + "] != " + "byteVectorValues.size [" + byteVectorValues.size() + "]";
+    dataOffsets[ordinal] = output.getFilePointer();
+    return new DocsAndOffsets(docsWithField, dataOffsets);
+  }
+
+  /**
+   * Writes the vector values to the output
+   * Returns {@link DocsAndOffsets}, a record of a set of documents with vectors,
+   * and dataOffsets for those vectors
+   */
+  private static DocsAndOffsets writeVectorData(
       IndexOutput output, FloatVectorValues floatVectorValues) throws IOException {
     DocsWithFieldSet docsWithField = new DocsWithFieldSet();
-    ByteBuffer buffer =
-        ByteBuffer.allocate(floatVectorValues.dimension() * VectorEncoding.FLOAT32.byteSize)
-            .order(ByteOrder.LITTLE_ENDIAN);
+    ByteBuffer buffer = null;
+    int ordinal = 0;
+    long[] dataOffsets = new long[floatVectorValues.size()];
     KnnVectorValues.DocIndexIterator iter = floatVectorValues.iterator();
     for (int docV = iter.nextDoc(); docV != NO_MORE_DOCS; docV = iter.nextDoc()) {
       // write vector
       float[] value = floatVectorValues.vectorValue(iter.index());
-      buffer.asFloatBuffer().put(value);
-      output.writeBytes(buffer.array(), buffer.limit());
+      final int valueByteLength = resizeBufferAndWrite(buffer, value);
+      dataOffsets[ordinal++] = output.getFilePointer();
+      output.writeBytes(buffer.array(), valueByteLength);
       docsWithField.add(docV);
+      buffer.clear();
     }
-    return docsWithField;
+    assert ordinal == floatVectorValues.size()
+        : "ordinal [" + ordinal + "] != " + "floatVectorValues.size [" + floatVectorValues.size() + "]";
+    dataOffsets[ordinal] = output.getFilePointer();
+    return new DocsAndOffsets(docsWithField, dataOffsets);
+  }
+
+  /** Writes a float vector to ByteBuffer, resizing the buffer if needed.
+   * Returns the byte length of vector written.
+   */
+  private static int resizeBufferAndWrite(ByteBuffer buffer, float[] vector) {
+    final int length = vector.length * VectorEncoding.FLOAT32.byteSize;
+    if (buffer == null || buffer.capacity() < length) {
+      buffer = ByteBuffer.allocate(length).order(ByteOrder.LITTLE_ENDIAN);
+    }
+    buffer.asFloatBuffer().put(vector);
+    return length;
   }
 
   @Override
