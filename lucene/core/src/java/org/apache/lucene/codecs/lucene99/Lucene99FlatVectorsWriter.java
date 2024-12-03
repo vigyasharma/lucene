@@ -164,7 +164,7 @@ public final class Lucene99FlatVectorsWriter extends FlatVectorsWriter {
     long vectorDataLength = vectorData.getFilePointer() - vectorDataOffset;
 
     writeMeta(
-        fieldData.fieldInfo, maxDoc, vectorDataOffset, vectorDataLength, fieldData.docsWithField);
+        fieldData.fieldInfo, maxDoc, vectorDataOffset, vectorDataLength, fieldData.docsWithField, fieldData.dataOffsets);
   }
 
 
@@ -220,7 +220,7 @@ public final class Lucene99FlatVectorsWriter extends FlatVectorsWriter {
         };
     long vectorDataLength = vectorData.getFilePointer() - vectorDataOffset;
 
-    writeMeta(fieldData.fieldInfo, maxDoc, vectorDataOffset, vectorDataLength, newDocsWithField);
+    writeMeta(fieldData.fieldInfo, maxDoc, vectorDataOffset, vectorDataLength, newDocsWithField, fieldData.dataOffsets);
   }
 
   private long writeSortedFloat32Vectors(FieldWriter<?> fieldData, int[] ordMap)
@@ -284,7 +284,8 @@ public final class Lucene99FlatVectorsWriter extends FlatVectorsWriter {
         segmentWriteState.segmentInfo.maxDoc(),
         vectorDataOffset,
         vectorDataLength,
-        docsAndOffsets.docsWithField());
+        docsAndOffsets.docsWithField(),
+        docsAndOffsets.dataOffsets());
   }
 
   // Pending: pass dataOffsets in writeMeta and VectorValues()
@@ -339,7 +340,8 @@ public final class Lucene99FlatVectorsWriter extends FlatVectorsWriter {
           segmentWriteState.segmentInfo.maxDoc(),
           vectorDataOffset,
           vectorDataLength,
-          docsAndOffsets.docsWithField());
+          docsAndOffsets.docsWithField(),
+          docsAndOffsets.dataOffsets());
       success = true;
       final IndexInput finalVectorDataInput = vectorDataInput;
       final RandomVectorScorerSupplier randomVectorScorerSupplier =
@@ -387,7 +389,8 @@ public final class Lucene99FlatVectorsWriter extends FlatVectorsWriter {
       int maxDoc,
       long vectorDataOffset,
       long vectorDataLength,
-      DocsWithFieldSet docsWithField)
+      DocsWithFieldSet docsWithField,
+      long[] multiVectorDataOffsets)
       throws IOException {
     meta.writeInt(field.number);
     meta.writeInt(field.getVectorEncoding().ordinal());
@@ -401,6 +404,11 @@ public final class Lucene99FlatVectorsWriter extends FlatVectorsWriter {
     meta.writeInt(count);
     OrdToDocDISIReaderConfiguration.writeStoredMeta(
         DIRECT_MONOTONIC_BLOCK_SHIFT, meta, vectorData, count, maxDoc, docsWithField);
+
+    // write multi-vector data offsets
+    // TODO: write only for multi-vectors
+    MultiVectorDataOffsetsReaderConfiguration.writeStoredMeta(
+        DIRECT_MONOTONIC_BLOCK_SHIFT, meta, vectorData, multiVectorDataOffsets);
   }
 
   /* Utility class to collect DocsWithFieldSet and DataOffsets for multi-vectors */
