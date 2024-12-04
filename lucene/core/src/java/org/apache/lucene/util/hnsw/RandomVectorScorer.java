@@ -29,6 +29,7 @@ public interface RandomVectorScorer {
    * @param node a random node in the graph
    * @return the computed score
    */
+  // TODO: Pending – change to long, otherwise everything will break as you'll get allValues instead of one vector
   float score(int node) throws IOException;
 
   /**
