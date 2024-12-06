@@ -211,7 +211,8 @@ public final class Lucene99FlatVectorsReader extends FlatVectorsReader {
         fieldEntry.dimension,
         fieldEntry.vectorDataOffset,
         fieldEntry.vectorDataLength,
-        vectorData);
+        vectorData,
+        fieldEntry.dataOffsetsConfiguration);
   }
 
   @Override
@@ -225,7 +226,8 @@ public final class Lucene99FlatVectorsReader extends FlatVectorsReader {
         fieldEntry.dimension,
         fieldEntry.vectorDataOffset,
         fieldEntry.vectorDataLength,
-        vectorData);
+        vectorData,
+        fieldEntry.dataOffsetsConfiguration);
   }
 
   @Override
@@ -241,7 +243,8 @@ public final class Lucene99FlatVectorsReader extends FlatVectorsReader {
             fieldEntry.dimension,
             fieldEntry.vectorDataOffset,
             fieldEntry.vectorDataLength,
-            vectorData),
+            vectorData,
+            fieldEntry.dataOffsetsConfiguration),
         target);
   }
 
@@ -258,7 +261,8 @@ public final class Lucene99FlatVectorsReader extends FlatVectorsReader {
             fieldEntry.dimension,
             fieldEntry.vectorDataOffset,
             fieldEntry.vectorDataLength,
-            vectorData),
+            vectorData,
+            fieldEntry.dataOffsetsConfiguration),
         target);
   }
 
@@ -282,6 +286,7 @@ public final class Lucene99FlatVectorsReader extends FlatVectorsReader {
       int dimension,
       int size,
       OrdToDocDISIReaderConfiguration ordToDoc,
+      MultiVectorDataOffsetsReaderConfiguration dataOffsetsConfiguration,
       FieldInfo info) {
 
     FieldEntry {
@@ -303,28 +308,30 @@ public final class Lucene99FlatVectorsReader extends FlatVectorsReader {
                 + infoVectorDimension
                 + " != "
                 + dimension);
+
       }
 
-      int byteSize =
-          switch (info.getVectorEncoding()) {
-            case BYTE -> Byte.BYTES;
-            case FLOAT32 -> Float.BYTES;
-          };
-      long vectorBytes = Math.multiplyExact((long) infoVectorDimension, byteSize);
-      long numBytes = Math.multiplyExact(vectorBytes, size);
-      if (numBytes != vectorDataLength) {
-        throw new IllegalStateException(
-            "Vector data length "
-                + vectorDataLength
-                + " not matching size="
-                + size
-                + " * dim="
-                + dimension
-                + " * byteSize="
-                + byteSize
-                + " = "
-                + numBytes);
-      }
+      // TODO: uncomment when multi-vectors are made optional
+//      int byteSize =
+//          switch (info.getVectorEncoding()) {
+//            case BYTE -> Byte.BYTES;
+//            case FLOAT32 -> Float.BYTES;
+//          };
+//      long vectorBytes = Math.multiplyExact((long) infoVectorDimension, byteSize);
+//      long numBytes = Math.multiplyExact(vectorBytes, size);
+//      if (numBytes != vectorDataLength) {
+//        throw new IllegalStateException(
+//            "Vector data length "
+//                + vectorDataLength
+//                + " not matching size="
+//                + size
+//                + " * dim="
+//                + dimension
+//                + " * byteSize="
+//                + byteSize
+//                + " = "
+//                + numBytes);
+//      }
     }
 
     static FieldEntry create(IndexInput input, FieldInfo info) throws IOException {
@@ -335,6 +342,9 @@ public final class Lucene99FlatVectorsReader extends FlatVectorsReader {
       final var dimension = input.readVInt();
       final var size = input.readInt();
       final var ordToDoc = OrdToDocDISIReaderConfiguration.fromStoredMeta(input, size);
+      // TODO: add bkwd compat support
+      // TODO: add support for optionally written multi-vectors
+      final var dataOffsetsConfiguration = MultiVectorDataOffsetsReaderConfiguration.fromStoredMeta(input);
       return new FieldEntry(
           similarityFunction,
           vectorEncoding,
@@ -343,6 +353,7 @@ public final class Lucene99FlatVectorsReader extends FlatVectorsReader {
           dimension,
           size,
           ordToDoc,
+          dataOffsetsConfiguration,
           info);
     }
   }

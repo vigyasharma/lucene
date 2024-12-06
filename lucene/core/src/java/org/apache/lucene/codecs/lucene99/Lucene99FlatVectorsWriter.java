@@ -417,6 +417,7 @@ public final class Lucene99FlatVectorsWriter extends FlatVectorsWriter {
 
     // write multi-vector data offsets
     // TODO: write only for multi-vectors
+    // TODO: add bkwd compat support
     MultiVectorDataOffsetsReaderConfiguration.writeStoredMeta(
         DIRECT_MONOTONIC_BLOCK_SHIFT, meta, vectorData, multiVectorDataOffsets);
   }
