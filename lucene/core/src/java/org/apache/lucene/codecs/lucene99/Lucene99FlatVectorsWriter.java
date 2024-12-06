@@ -50,6 +50,7 @@ import org.apache.lucene.store.IndexOutput;
 import org.apache.lucene.store.ReadAdvice;
 import org.apache.lucene.util.ArrayUtil;
 import org.apache.lucene.util.IOUtils;
+import org.apache.lucene.util.LongValues;
 import org.apache.lucene.util.RamUsageEstimator;
 import org.apache.lucene.util.hnsw.CloseableRandomVectorScorerSupplier;
 import org.apache.lucene.util.hnsw.RandomVectorScorer;
@@ -344,6 +345,13 @@ public final class Lucene99FlatVectorsWriter extends FlatVectorsWriter {
           docsAndOffsets.dataOffsets());
       success = true;
       final IndexInput finalVectorDataInput = vectorDataInput;
+      LongValues dataOffsets =
+          new LongValues() {
+            @Override
+            public long get(long index) {
+              return docsAndOffsets.dataOffsets[(int) index];
+            }
+          };
       final RandomVectorScorerSupplier randomVectorScorerSupplier =
           switch (fieldInfo.getVectorEncoding()) {
             case BYTE ->
@@ -355,7 +363,8 @@ public final class Lucene99FlatVectorsWriter extends FlatVectorsWriter {
                         finalVectorDataInput,
                         fieldInfo.getVectorDimension() * Byte.BYTES,
                         vectorsScorer,
-                        fieldInfo.getVectorSimilarityFunction()));
+                        fieldInfo.getVectorSimilarityFunction(),
+                        dataOffsets));
             case FLOAT32 ->
                 vectorsScorer.getRandomVectorScorerSupplier(
                     fieldInfo.getVectorSimilarityFunction(),
@@ -365,7 +374,8 @@ public final class Lucene99FlatVectorsWriter extends FlatVectorsWriter {
                         finalVectorDataInput,
                         fieldInfo.getVectorDimension() * Float.BYTES,
                         vectorsScorer,
-                        fieldInfo.getVectorSimilarityFunction()));
+                        fieldInfo.getVectorSimilarityFunction(),
+                        dataOffsets));
           };
       return new FlatCloseableRandomVectorScorerSupplier(
           () -> {

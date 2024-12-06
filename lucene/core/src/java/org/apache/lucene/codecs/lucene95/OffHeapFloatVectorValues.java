@@ -29,6 +29,7 @@ import org.apache.lucene.search.VectorScorer;
 import org.apache.lucene.store.IndexInput;
 import org.apache.lucene.store.RandomAccessInput;
 import org.apache.lucene.util.Bits;
+import org.apache.lucene.util.LongValues;
 import org.apache.lucene.util.hnsw.RandomVectorScorer;
 import org.apache.lucene.util.packed.DirectMonotonicReader;
 
@@ -44,8 +45,7 @@ public abstract class OffHeapFloatVectorValues extends FloatVectorValues impleme
   protected final float[] value;
   protected final VectorSimilarityFunction similarityFunction;
   protected final FlatVectorsScorer flatVectorsScorer;
-  protected final DirectMonotonicReader dataOffsets;
-  protected final MultiVectorDataOffsetsReaderConfiguration dataOffsetsConfiguration;
+  protected final LongValues dataOffsets;
 
   OffHeapFloatVectorValues(
       int dimension,
@@ -54,7 +54,7 @@ public abstract class OffHeapFloatVectorValues extends FloatVectorValues impleme
       int byteSize,
       FlatVectorsScorer flatVectorsScorer,
       VectorSimilarityFunction similarityFunction,
-      MultiVectorDataOffsetsReaderConfiguration dataOffsetsConfiguration) throws IOException {
+      LongValues dataOffsets) throws IOException {
     this.dimension = dimension;
     this.size = size;
     this.slice = slice;
@@ -62,12 +62,7 @@ public abstract class OffHeapFloatVectorValues extends FloatVectorValues impleme
     this.similarityFunction = similarityFunction;
     this.flatVectorsScorer = flatVectorsScorer;
     value = new float[dimension];
-    this.dataOffsetsConfiguration = dataOffsetsConfiguration;
-    if (dataOffsetsConfiguration != null) {
-      dataOffsets = this.dataOffsetsConfiguration.getDirectMonotonicReader(slice);
-    } else {
-      dataOffsets = null;
-    }
+    this.dataOffsets = dataOffsets;
   }
 
   @Override
@@ -126,6 +121,7 @@ public abstract class OffHeapFloatVectorValues extends FloatVectorValues impleme
     }
     IndexInput bytesSlice = vectorData.slice("vector-data", vectorDataOffset, vectorDataLength);
     int byteSize = dimension * VectorEncoding.FLOAT32.byteSize;
+    LongValues dataOffsets = dataOffsetsConfiguration.getDirectMonotonicReader(bytesSlice);
     if (configuration.docsWithFieldOffset == -1) {
       return new DenseOffHeapVectorValues(
           dimension,
@@ -134,7 +130,7 @@ public abstract class OffHeapFloatVectorValues extends FloatVectorValues impleme
           byteSize,
           flatVectorsScorer,
           vectorSimilarityFunction,
-          dataOffsetsConfiguration);
+          dataOffsets);
     } else {
       return new SparseOffHeapVectorValues(
           configuration,
@@ -144,7 +140,7 @@ public abstract class OffHeapFloatVectorValues extends FloatVectorValues impleme
           byteSize,
           flatVectorsScorer,
           vectorSimilarityFunction,
-          dataOffsetsConfiguration);
+          dataOffsets);
     }
   }
 
@@ -161,14 +157,14 @@ public abstract class OffHeapFloatVectorValues extends FloatVectorValues impleme
         int byteSize,
         FlatVectorsScorer flatVectorsScorer,
         VectorSimilarityFunction similarityFunction,
-        MultiVectorDataOffsetsReaderConfiguration dataOffsetsConfiguration) throws IOException {
-      super(dimension, size, slice, byteSize, flatVectorsScorer, similarityFunction, dataOffsetsConfiguration);
+        LongValues dataOffsets) throws IOException {
+      super(dimension, size, slice, byteSize, flatVectorsScorer, similarityFunction, dataOffsets);
     }
 
     @Override
     public DenseOffHeapVectorValues copy() throws IOException {
       return new DenseOffHeapVectorValues(
-          dimension, size, slice.clone(), byteSize, flatVectorsScorer, similarityFunction, dataOffsetsConfiguration);
+          dimension, size, slice.clone(), byteSize, flatVectorsScorer, similarityFunction, dataOffsets);
     }
 
     @Override
@@ -221,10 +217,10 @@ public abstract class OffHeapFloatVectorValues extends FloatVectorValues impleme
         int byteSize,
         FlatVectorsScorer flatVectorsScorer,
         VectorSimilarityFunction similarityFunction,
-        MultiVectorDataOffsetsReaderConfiguration dataOffsetsConfiguration)
+        LongValues dataOffsets)
         throws IOException {
 
-      super(dimension, configuration.size, slice, byteSize, flatVectorsScorer, similarityFunction, dataOffsetsConfiguration);
+      super(dimension, configuration.size, slice, byteSize, flatVectorsScorer, similarityFunction, dataOffsets);
       this.configuration = configuration;
       final RandomAccessInput addressesData =
           dataIn.randomAccessSlice(configuration.addressesOffset, configuration.addressesLength);
@@ -250,7 +246,7 @@ public abstract class OffHeapFloatVectorValues extends FloatVectorValues impleme
           byteSize,
           flatVectorsScorer,
           similarityFunction,
-          dataOffsetsConfiguration);
+          dataOffsets);
     }
 
     @Override
