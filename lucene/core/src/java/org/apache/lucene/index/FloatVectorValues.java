@@ -21,6 +21,7 @@ import java.util.List;
 import org.apache.lucene.document.KnnFloatVectorField;
 import org.apache.lucene.search.VectorScorer;
 import org.apache.lucene.util.ArrayUtil;
+import org.apache.lucene.util.hnsw.HnswUtil;
 
 /**
  * This class provides access to per-document floating point vector values indexed as {@link
@@ -37,8 +38,8 @@ public abstract class FloatVectorValues extends KnnVectorValues {
    * Returns all vector values for a given ordinal.
    * <p>
    * Each graph nodeId is a long with ordinal and subOrdinal values packed in
-   * MSB and LSB respectively. This API returns all vector values for the ordinal represented
-   * by the 32 MSB of nodeId. The (subOrdinal) vector values are concatenated into a
+   * LSB and MSB respectively. This API returns all vector values for the ordinal represented
+   * by the 32 LSB of nodeId. The (subOrdinal) vector values are concatenated into a
    * single float[] array.
    * For single valued vectors, this API returns the single vector value corresponding to
    * their ordinal.
@@ -68,7 +69,7 @@ public abstract class FloatVectorValues extends KnnVectorValues {
    * @return vector value
    */
   public float[] vectorValue(long nodeId) throws IOException {
-    return vectorValue(ordinal(nodeId), subOrdinal(nodeId));
+    return vectorValue(HnswUtil.ordinal(nodeId), HnswUtil.subOrdinal(nodeId));
   }
 
   @Override

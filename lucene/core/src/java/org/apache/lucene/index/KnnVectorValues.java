@@ -21,6 +21,7 @@ import org.apache.lucene.document.KnnByteVectorField;
 import org.apache.lucene.document.KnnFloatVectorField;
 import org.apache.lucene.search.DocIdSetIterator;
 import org.apache.lucene.util.Bits;
+import org.apache.lucene.util.hnsw.HnswUtil;
 
 /**
  * This class abstracts addressing of document vector values indexed as {@link KnnFloatVectorField}
@@ -53,25 +54,7 @@ public abstract class KnnVectorValues {
    * Return the docid of the document indexed for the given graph nodeId.
    */
   public int ordToDoc(long nodeId) {
-    return ordToDoc(ordinal(nodeId));
-  }
-
-  /**
-   * Return ordinal component of a given vector ANN graph nodeId.
-   * Each graph nodeId is a long with ordinal and subOrdinal values packed
-   * in MSB and LSB respectively. This API returns the ordinal value as an int.
-   */
-  public int ordinal(long nodeId) {
-    return ((int) (nodeId >> 32));
-  }
-
-  /**
-   * Return subOrdinal component of a given vector ANN graph nodeId.
-   * Each graph nodeId is a long with ordinal and subOrdinal values packed
-   * in MSB and LSB respectively. This API returns the subOrdinal value as an int.
-   */
-  public int subOrdinal(long nodeId) {
-    return (int)(nodeId & 0xFFFFFFFFL);
+    return ordToDoc(HnswUtil.ordinal(nodeId));
   }
 
   /**

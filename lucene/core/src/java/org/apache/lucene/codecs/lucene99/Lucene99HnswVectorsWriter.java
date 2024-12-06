@@ -54,6 +54,7 @@ import org.apache.lucene.util.hnsw.HnswGraph;
 import org.apache.lucene.util.hnsw.HnswGraph.NodesIterator;
 import org.apache.lucene.util.hnsw.HnswGraphBuilder;
 import org.apache.lucene.util.hnsw.HnswGraphMerger;
+import org.apache.lucene.util.hnsw.HnswUtil;
 import org.apache.lucene.util.hnsw.IncrementalHnswGraphMerger;
 import org.apache.lucene.util.hnsw.NeighborArray;
 import org.apache.lucene.util.hnsw.OnHeapHnswGraph;
@@ -619,18 +620,11 @@ public final class Lucene99HnswVectorsWriter extends KnnVectorsWriter {
             + " All vectors for a multi-vector should have the same dimension.");
       }
 
-      /** Each document with a vector is assigned a new ordinal. Multiple vector values within a
-       * document share the same ordinal, and have a unique subordinal. Single-valued fields have a single
-       * vector value with subOrdinal = 0.
-       * We pack the ordinal and subOrdinal to MSB and LSB for a long nodeId respectively.
-       */
       int numVectors = vectorLength / dimension;
-      long nodeId = 0;
       for (int subOrdinal = 0; subOrdinal < numVectors; subOrdinal++) {
-        nodeId = ((long) ordinal << 32) | subOrdinal;
+        long nodeId = HnswUtil.getNodeId(ordinal, subOrdinal);
+        hnswGraphBuilder.addGraphNode(nodeId);
       }
-
-      hnswGraphBuilder.addGraphNode(nodeId);
       ordinal++;
       lastDocID = docID;
     }

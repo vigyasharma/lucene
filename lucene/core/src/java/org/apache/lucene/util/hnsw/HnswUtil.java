@@ -37,6 +37,26 @@ public class HnswUtil {
   // utility class; only has static methods
   private HnswUtil() {}
 
+  /** Returns an HNSW graph nodeId from provided ordinal and subOrdinal values.
+   * <p/>
+   * We pack ordinal and subOrdinal into a single long nodeId, assigning LSB to ordinal
+   * and MSB to subOrdinal. For single vector fields, the subOrdinal is always 0. Keeping
+   * this in MSB optimizes the size of vlong writes to storage.
+   */
+  public static long getNodeId(int ordinal, int subOrdinal) {
+    return ((long) subOrdinal << 32) | ordinal;
+  }
+
+  /** Returns ordinal value packed in the LSB 4 bytes of a nodeId */
+  public static int ordinal(long nodeId) {
+    return (int)(nodeId);
+  }
+
+  /** Returns ordinal value packed in the MSB 4 bytes of a nodeId */
+  public static int subOrdinal(long nodeId) {
+    return ((int) (nodeId >> 32));
+  }
+
   /*
    For each level, check rooted components from previous level nodes, which are entry
    points with the goal that each node should be reachable from *some* entry point.  For each entry
