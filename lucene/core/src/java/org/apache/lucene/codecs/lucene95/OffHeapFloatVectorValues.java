@@ -81,15 +81,15 @@ public abstract class OffHeapFloatVectorValues extends FloatVectorValues impleme
   }
 
   @Override
-  public float[] vectorValue(int targetOrd) throws IOException {
+  public float[] allVectorValues(int targetOrd) throws IOException {
     // TODO: we can cache last fetched multi-vector, need to handle overlap with vectorValue(ord, subOrd)
     // TODO: can we avoid reallocations by using bytebuffer.slice() with array()
     long offset = dataOffsets.get(targetOrd);
     int length = (int) (dataOffsets.get(targetOrd + 1) - offset) / VectorEncoding.FLOAT32.byteSize;
-    float[] ordinalMultiVector = new float[length];
+    float[] vectorValues = new float[length];
     slice.seek(offset);
-    slice.readFloats(ordinalMultiVector, 0, length);
-    return ordinalMultiVector;
+    slice.readFloats(vectorValues, 0, length);
+    return vectorValues;
   }
 
   @Override
@@ -322,7 +322,7 @@ public abstract class OffHeapFloatVectorValues extends FloatVectorValues impleme
     }
 
     @Override
-    public float[] vectorValue(int targetOrd) {
+    public float[] allVectorValues(int targetOrd) {
       throw new UnsupportedOperationException();
     }
 

@@ -140,6 +140,19 @@ public abstract class OffHeapQuantizedByteVectorValues extends QuantizedByteVect
   }
 
   @Override
+  public byte[] allVectorValues(int ordinal) throws IOException {
+    throw new UnsupportedOperationException("Multi-vector values not supported");
+  }
+
+  @Override
+  public byte[] vectorValue(int ordinal, int subOrdinal) throws IOException {
+    if (subOrdinal > 0) {
+      throw new UnsupportedOperationException("Multi-Vector values not supported");
+    }
+    return vectorValue(ordinal);
+  }
+
+  @Override
   public float getScoreCorrectionConstant(int targetOrd) throws IOException {
     if (lastOrd == targetOrd) {
       return scoreCorrectionConstant[0];

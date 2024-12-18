@@ -409,6 +409,19 @@ public final class Lucene90HnswVectorsReader extends KnnVectorsReader {
     }
 
     @Override
+    public float[] allVectorValues(int ordinal) throws IOException {
+      throw new UnsupportedOperationException("Multi-vector values not supported");
+    }
+
+    @Override
+    public float[] vectorValue(int ordinal, int subOrdinal) throws IOException {
+      if (subOrdinal > 0) {
+        throw new UnsupportedOperationException("Multi-Vector values not supported");
+      }
+      return vectorValue(ordinal);
+    }
+
+    @Override
     public int ordToDoc(int ord) {
       return ordToDoc[ord];
     }

@@ -331,6 +331,19 @@ public class SimpleTextKnnVectorsReader extends KnnVectorsReader {
     }
 
     @Override
+    public float[] allVectorValues(int ordinal) throws IOException {
+      throw new UnsupportedOperationException("Multi-vector values not supported");
+    }
+
+    @Override
+    public float[] vectorValue(int ordinal, int subOrdinal) throws IOException {
+      if (subOrdinal > 0) {
+        throw new UnsupportedOperationException("Multi-Vector values not supported");
+      }
+      return vectorValue(ordinal);
+    }
+
+    @Override
     public int ordToDoc(int ord) {
       return entry.ordToDoc[ord];
     }
@@ -431,6 +444,19 @@ public class SimpleTextKnnVectorsReader extends KnnVectorsReader {
     public byte[] vectorValue(int ord) {
       binaryValue.bytes = values[ord];
       return binaryValue.bytes;
+    }
+
+    @Override
+    public byte[] allVectorValues(int ordinal) throws IOException {
+      throw new UnsupportedOperationException("Multi-vector values not supported");
+    }
+
+    @Override
+    public byte[] vectorValue(int ordinal, int subOrdinal) throws IOException {
+      if (subOrdinal > 0) {
+        throw new UnsupportedOperationException("Multi-Vector values not supported");
+      }
+      return vectorValue(ordinal);
     }
 
     @Override

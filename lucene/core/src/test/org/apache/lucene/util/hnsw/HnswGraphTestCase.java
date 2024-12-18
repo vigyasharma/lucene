@@ -1079,7 +1079,7 @@ abstract class HnswGraphTestCase<T> extends LuceneTestCase {
     }
 
     public float[] vectorValue() {
-      return vectorValue(doc);
+      return allVectorValues(doc);
     }
 
     public int docID() {
@@ -1100,7 +1100,7 @@ abstract class HnswGraphTestCase<T> extends LuceneTestCase {
     }
 
     @Override
-    public float[] vectorValue(int ord) {
+    public float[] allVectorValues(int ord) {
       return unitVector2d(ord / (double) size, value);
     }
 
@@ -1140,7 +1140,7 @@ abstract class HnswGraphTestCase<T> extends LuceneTestCase {
     }
 
     public byte[] vectorValue() {
-      return vectorValue(doc);
+      return allVectorValues(doc);
     }
 
     public int docID() {
@@ -1161,7 +1161,7 @@ abstract class HnswGraphTestCase<T> extends LuceneTestCase {
     }
 
     @Override
-    public byte[] vectorValue(int ord) {
+    public byte[] allVectorValues(int ord) {
       unitVector2d(ord / (double) size, value);
       for (int i = 0; i < value.length; i++) {
         bValue[i] = (byte) (value[i] * 127);

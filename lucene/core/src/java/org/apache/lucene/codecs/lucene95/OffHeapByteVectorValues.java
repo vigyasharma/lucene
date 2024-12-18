@@ -79,7 +79,7 @@ public abstract class OffHeapByteVectorValues extends ByteVectorValues implement
   }
 
   @Override
-  public byte[] vectorValue(int targetOrd) throws IOException {
+  public byte[] allVectorValues(int targetOrd) throws IOException {
     // TODO: cache value read for last ordinal
     // TODO: can we avoid reallocations by using bytebuffer.slice() with array()
     long offset = dataOffsets.get(targetOrd);
@@ -324,7 +324,7 @@ public abstract class OffHeapByteVectorValues extends ByteVectorValues implement
     }
 
     @Override
-    public byte[] vectorValue(int ord) throws IOException {
+    public byte[] allVectorValues(int ord) throws IOException {
       throw new UnsupportedOperationException();
     }
 

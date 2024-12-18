@@ -71,7 +71,7 @@ class MockVectorValues extends FloatVectorValues {
   }
 
   @Override
-  public float[] vectorValue(int ord) {
+  public float[] allVectorValues(int ord) {
     if (LuceneTestCase.random().nextBoolean()) {
       return values[ord];
     } else {

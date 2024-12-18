@@ -319,9 +319,9 @@ public final class SortingCodecReader extends FilterCodecReader {
     }
 
     @Override
-    public float[] vectorValue(int ord) throws IOException {
+    public float[] allVectorValues(int ord) throws IOException {
       // ords are interpreted in the delegate's ord-space.
-      return delegate.vectorValue(ord);
+      return delegate.allVectorValues(ord);
     }
 
     @Override
@@ -356,8 +356,8 @@ public final class SortingCodecReader extends FilterCodecReader {
     }
 
     @Override
-    public byte[] vectorValue(int ord) throws IOException {
-      return delegate.vectorValue(ord);
+    public byte[] allVectorValues(int ord) throws IOException {
+      return delegate.allVectorValues(ord);
     }
 
     @Override

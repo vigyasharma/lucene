@@ -18,6 +18,7 @@ package org.apache.lucene.index;
 
 import java.io.IOException;
 import java.util.List;
+
 import org.apache.lucene.document.KnnFloatVectorField;
 import org.apache.lucene.search.VectorScorer;
 import org.apache.lucene.util.ArrayUtil;
@@ -35,24 +36,11 @@ public abstract class FloatVectorValues extends KnnVectorValues {
   protected FloatVectorValues() {}
 
   /**
-   * Returns all vector values for a given ordinal.
-   * <p>
-   * Each graph nodeId is a long with ordinal and subOrdinal values packed in
-   * LSB and MSB respectively. This API returns all vector values for the ordinal represented
-   * by the 32 LSB of nodeId. The (subOrdinal) vector values are concatenated into a
-   * single float[] array.
-   * For single valued vectors, this API returns the single vector value corresponding to
-   * their ordinal.
-   * @return the vector value
-   */
-  public abstract float[] vectorValue(int ord) throws IOException;
-
-  /**
    * Returns the single specific vector value corresponding to an (ordinal, subOrdinal) pair.
    * @return vector value
    */
   public float[] vectorValue(int ordinal, int subOrdinal) throws IOException {
-    float[] packedValue = vectorValue(ordinal);
+    float[] packedValue = allVectorValues(ordinal);
     if (packedValue.length < (subOrdinal + 1) * dimension()) {
       throw new ArrayIndexOutOfBoundsException("requested subOrdinal [" + subOrdinal + "] " +
           "for vector ordinal [" + ordinal + "] is out of range.");
@@ -70,6 +58,28 @@ public abstract class FloatVectorValues extends KnnVectorValues {
    */
   public float[] vectorValue(long nodeId) throws IOException {
     return vectorValue(HnswUtil.ordinal(nodeId), HnswUtil.subOrdinal(nodeId));
+  }
+
+  /** Returns the single vector value for subOrdinal 0 for provided ordinal */
+  public float[] vectorValue(int ord) throws IOException {
+    return vectorValue(ord, 0);
+  }
+
+  /**
+   * Returns all vector values for a given ordinal.
+   * <p>
+   * Each graph nodeId is a long with ordinal and subOrdinal values packed in
+   * LSB and MSB respectively. This API returns all vector values for the ordinal represented
+   * by the 32 LSB of nodeId. The (subOrdinal) vector values are concatenated into a
+   * single float[] array. For single valued vector fields, this API returns the same
+   * value as {@link FloatVectorValues#vectorValue(int ord)}
+   * @return the vector value
+   */
+  public abstract float[] allVectorValues(int ordinal) throws IOException;
+
+  /** Returns all vector values for the ordinal of a given nodeId */
+  public float[] allVectorValues(long nodeId) throws IOException {
+    return allVectorValues(HnswUtil.ordinal(nodeId));
   }
 
   @Override
@@ -132,7 +142,7 @@ public abstract class FloatVectorValues extends KnnVectorValues {
       }
 
       @Override
-      public float[] vectorValue(int targetOrd) {
+      public float[] allVectorValues(int targetOrd) {
         return vectors.get(targetOrd);
       }
 

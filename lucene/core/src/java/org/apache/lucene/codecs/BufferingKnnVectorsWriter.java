@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Supplier;
+
 import org.apache.lucene.index.ByteVectorValues;
 import org.apache.lucene.index.DocsWithFieldSet;
 import org.apache.lucene.index.FieldInfo;
@@ -54,7 +55,7 @@ public abstract class BufferingKnnVectorsWriter extends KnnVectorsWriter {
             new FieldWriter<float[]>(fieldInfo) {
               @Override
               public float[] copyValue(float[] vectorValue) {
-                return ArrayUtil.copyOfSubArray(vectorValue, 0, fieldInfo.getVectorDimension());
+                return ArrayUtil.copyOfSubArray(vectorValue, 0, vectorValue.length);
               }
             };
         break;
@@ -63,7 +64,7 @@ public abstract class BufferingKnnVectorsWriter extends KnnVectorsWriter {
             new FieldWriter<byte[]>(fieldInfo) {
               @Override
               public byte[] copyValue(byte[] vectorValue) {
-                return ArrayUtil.copyOfSubArray(vectorValue, 0, fieldInfo.getVectorDimension());
+                return ArrayUtil.copyOfSubArray(vectorValue, 0, vectorValue.length);
               }
             };
         break;
@@ -122,7 +123,7 @@ public abstract class BufferingKnnVectorsWriter extends KnnVectorsWriter {
     }
 
     @Override
-    public float[] vectorValue(int ord) throws IOException {
+    public float[] allVectorValues(int ord) throws IOException {
       return delegate.vectorValue(ord);
     }
 
@@ -160,7 +161,7 @@ public abstract class BufferingKnnVectorsWriter extends KnnVectorsWriter {
     }
 
     @Override
-    public byte[] vectorValue(int ord) throws IOException {
+    public byte[] allVectorValues(int ord) throws IOException {
       return delegate.vectorValue(ord);
     }
 
@@ -241,6 +242,14 @@ public abstract class BufferingKnnVectorsWriter extends KnnVectorsWriter {
                 + fieldInfo.name
                 + "\" appears more than once in this document (only one value is allowed per field)");
       }
+      int vectorLength = switch (fieldInfo.getVectorEncoding()) {
+          case FLOAT32 -> ((float[]) value).length;
+          case BYTE -> ((byte[]) value).length;
+      };
+      if (vectorLength % fieldInfo.getVectorDimension() != 0) {
+        throw new IllegalArgumentException("Vector value does not matched configured vector dimension."
+            + " All vectors for a multi-vector should have the same dimension.");
+      }
       assert docID > lastDocID;
       docsWithField.add(docID);
       vectors.add(copyValue(value));
@@ -295,7 +304,7 @@ public abstract class BufferingKnnVectorsWriter extends KnnVectorsWriter {
     }
 
     @Override
-    public float[] vectorValue(int targetOrd) {
+    public float[] allVectorValues(int targetOrd) {
       return vectors.get(targetOrd);
     }
 
@@ -336,7 +345,7 @@ public abstract class BufferingKnnVectorsWriter extends KnnVectorsWriter {
     }
 
     @Override
-    public byte[] vectorValue(int targetOrd) {
+    public byte[] allVectorValues(int targetOrd) {
       return vectors.get(targetOrd);
     }
 

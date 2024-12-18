@@ -441,8 +441,8 @@ public class ExitableDirectoryReader extends FilterDirectoryReader {
       }
 
       @Override
-      public float[] vectorValue(int ord) throws IOException {
-        return vectorValues.vectorValue(ord);
+      public float[] allVectorValues(int ord) throws IOException {
+        return vectorValues.allVectorValues(ord);
       }
 
       @Override
@@ -489,8 +489,8 @@ public class ExitableDirectoryReader extends FilterDirectoryReader {
       }
 
       @Override
-      public byte[] vectorValue(int ord) throws IOException {
-        return vectorValues.vectorValue(ord);
+      public byte[] allVectorValues(int ord) throws IOException {
+        return vectorValues.allVectorValues(ord);
       }
 
       @Override

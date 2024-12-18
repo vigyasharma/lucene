@@ -21,6 +21,7 @@ import static org.apache.lucene.codecs.lucene99.Lucene99HnswVectorsReader.readSi
 import static org.apache.lucene.codecs.lucene99.Lucene99HnswVectorsReader.readVectorEncoding;
 
 import java.io.IOException;
+
 import org.apache.lucene.codecs.CodecUtil;
 import org.apache.lucene.codecs.hnsw.FlatVectorsReader;
 import org.apache.lucene.codecs.hnsw.FlatVectorsScorer;
@@ -416,6 +417,19 @@ public final class Lucene99ScalarQuantizedVectorsReader extends FlatVectorsReade
     @Override
     public float[] vectorValue(int ord) throws IOException {
       return rawVectorValues.vectorValue(ord);
+    }
+
+    @Override
+    public float[] allVectorValues(int ordinal) throws IOException {
+      throw new UnsupportedOperationException("Multi-vector values not supported");
+    }
+
+    @Override
+    public float[] vectorValue(int ordinal, int subOrdinal) throws IOException {
+      if (subOrdinal > 0) {
+        throw new UnsupportedOperationException("Multi-Vector values not supported");
+      }
+      return vectorValue(ordinal);
     }
 
     @Override

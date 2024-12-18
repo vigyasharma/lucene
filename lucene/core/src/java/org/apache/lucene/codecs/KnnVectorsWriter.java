@@ -364,7 +364,7 @@ public abstract class KnnVectorsWriter implements Accountable, Closeable {
       }
 
       @Override
-      public float[] vectorValue(int ord) throws IOException {
+      public float[] allVectorValues(int ord) throws IOException {
         if (ord != lastOrd) {
           throw new IllegalStateException(
               "only supports forward iteration with a single iterator: ord="
@@ -372,7 +372,7 @@ public abstract class KnnVectorsWriter implements Accountable, Closeable {
                   + ", lastOrd="
                   + lastOrd);
         }
-        return current.values.vectorValue(current.index());
+        return current.values.allVectorValues(current.index());
       }
 
       @Override
@@ -422,14 +422,14 @@ public abstract class KnnVectorsWriter implements Accountable, Closeable {
       }
 
       @Override
-      public byte[] vectorValue(int ord) throws IOException {
+      public byte[] allVectorValues(int ord) throws IOException {
         if (ord != lastOrd + 1) {
           throw new IllegalStateException(
               "only supports forward iteration: ord=" + ord + ", lastOrd=" + lastOrd);
         } else {
           lastOrd = ord;
         }
-        return current.values.vectorValue(current.index());
+        return current.values.allVectorValues(current.index());
       }
 
       @Override

@@ -900,14 +900,14 @@ final class SlowCompositeCodecReaderWrapper extends CodecReader {
       }
 
       @Override
-      public float[] vectorValue(int ord) throws IOException {
+      public float[] allVectorValues(int ord) throws IOException {
         assert ord >= 0 && ord < size;
         // We need to implement fully random-access API here in order to support callers like
         // SortingCodecReader that rely on it.
         lastSubIndex = findSub(ord, lastSubIndex, starts);
         DocValuesSub<FloatVectorValues> sub = subs.get(lastSubIndex);
         assert sub.sub != null;
-        return (sub.sub).vectorValue(ord - sub.ordStart);
+        return (sub.sub).allVectorValues(ord - sub.ordStart);
       }
     }
 
@@ -969,14 +969,14 @@ final class SlowCompositeCodecReaderWrapper extends CodecReader {
       }
 
       @Override
-      public byte[] vectorValue(int ord) throws IOException {
+      public byte[] allVectorValues(int ord) throws IOException {
         assert ord >= 0 && ord < size;
         // We need to implement fully random-access API here in order to support callers like
         // SortingCodecReader that rely on it.  We maintain lastSubIndex since we expect some
         // repetition.
         lastSubIndex = findSub(ord, lastSubIndex, starts);
         DocValuesSub<ByteVectorValues> sub = subs.get(lastSubIndex);
-        return sub.sub.vectorValue(ord - sub.ordStart);
+        return sub.sub.allVectorValues(ord - sub.ordStart);
       }
 
       @SuppressWarnings("unchecked")

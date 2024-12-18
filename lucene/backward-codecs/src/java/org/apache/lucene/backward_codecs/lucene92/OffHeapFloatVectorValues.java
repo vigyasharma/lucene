@@ -18,6 +18,7 @@
 package org.apache.lucene.backward_codecs.lucene92;
 
 import java.io.IOException;
+
 import org.apache.lucene.codecs.lucene90.IndexedDISI;
 import org.apache.lucene.index.FloatVectorValues;
 import org.apache.lucene.index.VectorSimilarityFunction;
@@ -72,6 +73,19 @@ abstract class OffHeapFloatVectorValues extends FloatVectorValues {
     slice.readFloats(value, 0, value.length);
     lastOrd = targetOrd;
     return value;
+  }
+
+  @Override
+  public float[] allVectorValues(int ordinal) throws IOException {
+    throw new UnsupportedOperationException("Multi-vector values not supported");
+  }
+
+  @Override
+  public float[] vectorValue(int ordinal, int subOrdinal) throws IOException {
+    if (subOrdinal > 0) {
+      throw new UnsupportedOperationException("Multi-Vector values not supported");
+    }
+    return vectorValue(ordinal);
   }
 
   static OffHeapFloatVectorValues load(

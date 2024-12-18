@@ -73,6 +73,19 @@ public class Word2VecModel extends FloatVectorValues {
     return (entry == null) ? null : entry.vector();
   }
 
+  @Override
+  public float[] allVectorValues(int ordinal) throws IOException {
+    throw new UnsupportedOperationException("Multi-vector values not supported");
+  }
+
+  @Override
+  public float[] vectorValue(int ordinal, int subOrdinal) throws IOException {
+    if (subOrdinal > 0) {
+      throw new UnsupportedOperationException("Multi-Vector values not supported");
+    }
+    return vectorValue(ordinal);
+  }
+
   public BytesRef termValue(int targetOrd) {
     return termsAndVectors[targetOrd].term();
   }

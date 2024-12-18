@@ -35,24 +35,11 @@ public abstract class ByteVectorValues extends KnnVectorValues {
   protected ByteVectorValues() {}
 
   /**
-   * Returns all vector values for a given ordinal.
-   * <p>
-   * Each graph nodeId is a long with ordinal and subOrdinal values packed in
-   * LSB and MSB respectively. This API returns all vector values for the ordinal represented
-   * by the 32 LSB of nodeId. The (subOrdinal) vector values are concatenated into a
-   * single byte[] array.
-   * For single valued vectors, this API returns the single vector value corresponding to
-   * their ordinal.
-   * @return the vector value
-   */
-  public abstract byte[] vectorValue(int ord) throws IOException;
-
-  /**
    * Returns the single specific vector value corresponding to an (ordinal, subOrdinal) pair.
    * @return vector value
    */
   public byte[] vectorValue(int ordinal, int subOrdinal) throws IOException {
-    byte[] packedValue = vectorValue(ordinal);
+    byte[] packedValue = allVectorValues(ordinal);
     if (packedValue.length < (subOrdinal + 1) * dimension()) {
       throw new ArrayIndexOutOfBoundsException("requested subOrdinal [" + subOrdinal + "] " +
           "for vector ordinal [" + ordinal + "] is out of range.");
@@ -70,6 +57,28 @@ public abstract class ByteVectorValues extends KnnVectorValues {
    */
   public byte[] vectorValue(long nodeId) throws IOException {
     return vectorValue(HnswUtil.ordinal(nodeId), HnswUtil.subOrdinal(nodeId));
+  }
+
+  /** Returns the single vector value for subOrdinal 0 for provided ordinal */
+  public byte[] vectorValue(int ord) throws IOException {
+    return vectorValue(ord, 0);
+  }
+
+  /**
+   * Returns all vector values for a given ordinal.
+   * <p>
+   * Each graph nodeId is a long with ordinal and subOrdinal values packed in
+   * LSB and MSB respectively. This API returns all vector values for the ordinal represented
+   * by the 32 LSB of nodeId. The (subOrdinal) vector values are concatenated into a
+   * single byte[] array. For single valued vector fields, this API returns the same
+   * value as {@link ByteVectorValues#allVectorValues(int ord)} 
+   * @return all vector values packed in a single array
+   */
+  public abstract byte[] allVectorValues(int ordinal) throws IOException;
+
+  /** Returns all vector values for the ordinal of a given nodeId */
+  public byte[] allVectorValues(long nodeId) throws IOException {
+    return allVectorValues(HnswUtil.ordinal(nodeId));
   }
 
   @Override
@@ -131,7 +140,7 @@ public abstract class ByteVectorValues extends KnnVectorValues {
       }
 
       @Override
-      public byte[] vectorValue(int targetOrd) {
+      public byte[] allVectorValues(int targetOrd) {
         return vectors.get(targetOrd);
       }
 

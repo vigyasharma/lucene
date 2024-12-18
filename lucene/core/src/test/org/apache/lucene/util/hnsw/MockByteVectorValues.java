@@ -76,7 +76,7 @@ class MockByteVectorValues extends ByteVectorValues {
   }
 
   @Override
-  public byte[] vectorValue(int ord) {
+  public byte[] allVectorValues(int ord) {
     if (LuceneTestCase.random().nextBoolean()) {
       return values[ord];
     } else {

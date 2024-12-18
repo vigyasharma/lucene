@@ -874,7 +874,7 @@ public final class Lucene99ScalarQuantizedVectorsWriter extends FlatVectorsWrite
     }
 
     @Override
-    public float[] vectorValue(int ord) throws IOException {
+    public float[] allVectorValues(int ord) throws IOException {
       if (ord < 0 || ord >= vectorList.size()) {
         throw new IOException("vector ord " + ord + " out of bounds");
       }
@@ -977,6 +977,19 @@ public final class Lucene99ScalarQuantizedVectorsWriter extends FlatVectorsWrite
     @Override
     public byte[] vectorValue(int ord) throws IOException {
       return current.values.vectorValue(current.index());
+    }
+
+    @Override
+    public byte[] allVectorValues(int ordinal) throws IOException {
+      throw new UnsupportedOperationException("Multi-vector values not supported");
+    }
+
+    @Override
+    public byte[] vectorValue(int ordinal, int subOrdinal) throws IOException {
+      if (subOrdinal > 0) {
+        throw new UnsupportedOperationException("Multi-Vector values not supported");
+      }
+      return vectorValue(ordinal);
     }
 
     @Override
@@ -1094,6 +1107,19 @@ public final class Lucene99ScalarQuantizedVectorsWriter extends FlatVectorsWrite
     }
 
     @Override
+    public byte[] allVectorValues(int ordinal) throws IOException {
+      throw new UnsupportedOperationException("Multi-vector values not supported");
+    }
+
+    @Override
+    public byte[] vectorValue(int ordinal, int subOrdinal) throws IOException {
+      if (subOrdinal > 0) {
+        throw new UnsupportedOperationException("Multi-Vector values not supported");
+      }
+      return vectorValue(ordinal);
+    }
+
+    @Override
     public VectorScorer scorer(float[] target) throws IOException {
       throw new UnsupportedOperationException();
     }
@@ -1187,6 +1213,11 @@ public final class Lucene99ScalarQuantizedVectorsWriter extends FlatVectorsWrite
     }
 
     @Override
+    public byte[] allVectorValues(int ordinal) throws IOException {
+      return in.allVectorValues(ordinal);
+    }
+
+    @Override
     public int ordToDoc(int ord) {
       return in.ordToDoc(ord);
     }
@@ -1226,6 +1257,19 @@ public final class Lucene99ScalarQuantizedVectorsWriter extends FlatVectorsWrite
       System.arraycopy(values.vectorValue(ord), 0, normalizedVector, 0, normalizedVector.length);
       VectorUtil.l2normalize(normalizedVector);
       return normalizedVector;
+    }
+
+    @Override
+    public float[] allVectorValues(int ordinal) throws IOException {
+      throw new UnsupportedOperationException("Multi-valued vectors not supported");
+    }
+
+    @Override
+    public float[] vectorValue(int ordinal, int subOrdinal) throws IOException {
+      if (subOrdinal > 0) {
+        throw new UnsupportedOperationException("Multi-valued vectors not supported");
+      }
+      return vectorValue(ordinal);
     }
 
     @Override

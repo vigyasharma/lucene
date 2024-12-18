@@ -2301,7 +2301,7 @@ public class MemoryIndex {
     }
 
     @Override
-    public float[] vectorValue(int ord) {
+    public float[] allVectorValues(int ord) {
       if (ord == 0) {
         return info.floatVectorValues[0];
       } else {
@@ -2365,7 +2365,7 @@ public class MemoryIndex {
     }
 
     @Override
-    public byte[] vectorValue(int ord) {
+    public byte[] allVectorValues(int ord) {
       if (ord == 0) {
         return info.byteVectorValues[0];
       } else {
@@ -2391,7 +2391,7 @@ public class MemoryIndex {
       DocIndexIterator iterator = vectorValues.iterator();
       return new VectorScorer() {
         @Override
-        public float score() {
+        public float score() throws IOException {
           assert iterator.docID() == 0;
           return info.fieldInfo
               .getVectorSimilarityFunction()
