@@ -440,7 +440,7 @@ public final class Lucene99FlatVectorsWriter extends FlatVectorsWriter {
     KnnVectorValues.DocIndexIterator iter = byteVectorValues.iterator();
 
     int ordinal = 0;
-    long[] dataOffsets = new long[byteVectorValues.size()];
+    long[] dataOffsets = new long[byteVectorValues.size() + 1];
     for (int docV = iter.nextDoc(); docV != NO_MORE_DOCS; docV = iter.nextDoc()) {
       // write vector
       byte[] binaryValue = byteVectorValues.vectorValue(iter.index());
@@ -464,7 +464,7 @@ public final class Lucene99FlatVectorsWriter extends FlatVectorsWriter {
     DocsWithFieldSet docsWithField = new DocsWithFieldSet();
     ByteBuffer buffer = null;
     int ordinal = 0;
-    long[] dataOffsets = new long[floatVectorValues.size()];
+    long[] dataOffsets = new long[floatVectorValues.size() + 1];
     KnnVectorValues.DocIndexIterator iter = floatVectorValues.iterator();
     for (int docV = iter.nextDoc(); docV != NO_MORE_DOCS; docV = iter.nextDoc()) {
       // write vector

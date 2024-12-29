@@ -105,8 +105,28 @@ public class DefaultFlatVectorScorer implements FlatVectorsScorer {
     public RandomVectorScorer scorer(int ord) {
       return new RandomVectorScorer.AbstractRandomVectorScorer(vectors) {
         @Override
-        public float score(int node) throws IOException {
-          return similarityFunction.compare(vectors1.vectorValue(ord), vectors2.vectorValue(node));
+        public float score(int targetOrd) throws IOException {
+          return similarityFunction.compare(vectors1.vectorValue(ord), vectors2.vectorValue(targetOrd));
+        }
+
+        @Override
+        public float score(int targetOrd, int targetSubOrd) throws IOException {
+          return similarityFunction.compare(vectors1.vectorValue(ord), vectors2.vectorValue(targetOrd, targetSubOrd));
+        }
+      };
+    }
+
+    @Override
+    public RandomVectorScorer scorer(int baseOrd, int baseSubOrd) {
+      return new RandomVectorScorer.AbstractRandomVectorScorer(vectors) {
+        @Override
+        public float score(int targetOrd) throws IOException {
+          return similarityFunction.compare(vectors1.vectorValue(baseOrd, baseSubOrd), vectors2.vectorValue(targetOrd));
+        }
+
+        @Override
+        public float score(int targetOrd, int targetSubOrd) throws IOException {
+          return similarityFunction.compare(vectors1.vectorValue(baseOrd, baseSubOrd), vectors2.vectorValue(targetOrd, targetSubOrd));
         }
       };
     }
@@ -141,8 +161,28 @@ public class DefaultFlatVectorScorer implements FlatVectorsScorer {
     public RandomVectorScorer scorer(int ord) {
       return new RandomVectorScorer.AbstractRandomVectorScorer(vectors) {
         @Override
-        public float score(int node) throws IOException {
-          return similarityFunction.compare(vectors1.vectorValue(ord), vectors2.vectorValue(node));
+        public float score(int targetOrd) throws IOException {
+          return similarityFunction.compare(vectors1.vectorValue(ord), vectors2.vectorValue(targetOrd));
+        }
+
+        @Override
+        public float score(int targetOrd, int targetSubOrd) throws IOException {
+          return similarityFunction.compare(vectors1.vectorValue(ord), vectors2.vectorValue(targetOrd, targetSubOrd));
+        }
+      };
+    }
+
+    @Override
+    public RandomVectorScorer scorer(int baseOrd, int baseSubOrd) {
+      return new RandomVectorScorer.AbstractRandomVectorScorer(vectors) {
+        @Override
+        public float score(int targetOrd) throws IOException {
+          return similarityFunction.compare(vectors1.vectorValue(baseOrd, baseSubOrd), vectors2.vectorValue(targetOrd));
+        }
+
+        @Override
+        public float score(int targetOrd, int targetSubOrd) throws IOException {
+          return similarityFunction.compare(vectors1.vectorValue(baseOrd, baseSubOrd), vectors2.vectorValue(targetOrd, targetSubOrd));
         }
       };
     }
@@ -173,8 +213,13 @@ public class DefaultFlatVectorScorer implements FlatVectorsScorer {
     }
 
     @Override
-    public float score(int node) throws IOException {
-      return similarityFunction.compare(query, values.vectorValue(node));
+    public float score(int ord) throws IOException {
+      return similarityFunction.compare(query, values.vectorValue(ord));
+    }
+
+    @Override
+    public float score(int ordinal, int subOrdinal) throws IOException {
+      return similarityFunction.compare(query, values.vectorValue(ordinal, subOrdinal));
     }
   }
 
@@ -193,8 +238,13 @@ public class DefaultFlatVectorScorer implements FlatVectorsScorer {
     }
 
     @Override
-    public float score(int node) throws IOException {
-      return similarityFunction.compare(query, values.vectorValue(node));
+    public float score(int ord) throws IOException {
+      return similarityFunction.compare(query, values.vectorValue(ord));
+    }
+
+    @Override
+    public float score(int ordinal, int subOrdinal) throws IOException {
+      return similarityFunction.compare(query, values.vectorValue(ordinal, subOrdinal));
     }
   }
 }

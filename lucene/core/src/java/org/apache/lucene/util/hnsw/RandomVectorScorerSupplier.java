@@ -23,12 +23,39 @@ import java.io.IOException;
 public interface RandomVectorScorerSupplier {
   /**
    * This creates a {@link RandomVectorScorer} for scoring random nodes in batches against the given
-   * ordinal.
+   * ordinal. Scores are computed against the vector value for subOrdinal = 0, of the provided
+   * node ordinal.
    *
    * @param ord the ordinal of the node to compare
    * @return a new {@link RandomVectorScorer}
    */
   RandomVectorScorer scorer(int ord) throws IOException;
+
+  /**
+   * Creates a {@link RandomVectorScorer} for scoring random nodes in the graph against a given
+   * graph node.
+   *
+   * @param node nodeId of the graph node to use for scoring
+   * @return a new {@link RandomVectorScorer}
+   */
+  default RandomVectorScorer scorer(long node) throws IOException {
+    return scorer(HnswUtil.ordinal(node), HnswUtil.subOrdinal(node));
+  }
+
+  /**
+   * Creates a {@link RandomVectorScorer} for scoring random nodes in the graph against a given
+   * vector value identified by its graph ordinal and subOrdinal.
+   *
+   * @param ordinal Ordinal of the node to compare
+   * @param subOrdinal SubOrdinal of the node to compare
+   * @return a new {@link RandomVectorScorer}
+   */
+  default RandomVectorScorer scorer(int ordinal, int subOrdinal) throws IOException {
+    if (subOrdinal == 0) {
+      return scorer(ordinal);
+    }
+    throw new UnsupportedOperationException("Multi-Vector scorers are not supported");
+  }
 
   /**
    * Make a copy of the supplier, which will copy the underlying vectorValues so the copy is safe to
