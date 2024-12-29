@@ -173,37 +173,33 @@ public final class Lucene99FlatVectorsWriter extends FlatVectorsWriter {
     int ordinal = 0;
     ByteBuffer buffer = null;
     fieldData.dataOffsets = new long[fieldData.vectors.size() + 1];
+    fieldData.dataOffsets[0] = 0;
     for (Object v : fieldData.vectors) {
       float[] vector = (float[])v;
       if (fieldData.hasMultiVectors == false) {
         assert vector.length == fieldData.dim;
       }
+      int numVectorValues = vector.length / fieldData.dim;
       final int vectorByteLength = resizeBufferAndWrite(buffer, vector);
-      fieldData.dataOffsets[ordinal++] = vectorData.getFilePointer(); // start pointer for ordinal
       vectorData.writeBytes(buffer.array(), vectorByteLength);
+      fieldData.dataOffsets[ordinal + 1] = fieldData.dataOffsets[ordinal] + numVectorValues;
       buffer.clear();
     }
-
-    // TODO: maintain dataOffsets only if multi-vectors present
-    assert ordinal == fieldData.vectors.size()
-        : "ordinal=" + ordinal + "!=" + "fieldData.vectors.size()=" + fieldData.vectors.size();
-    fieldData.dataOffsets[ordinal] = vectorData.getFilePointer(); // end pointer for last ordinal
   }
 
   private void writeByteVectors(FieldWriter<?> fieldData) throws IOException {
     int ordinal = 0;
     fieldData.dataOffsets = new long[fieldData.vectors.size() + 1];
+    fieldData.dataOffsets[0] = 0;
     for (Object v : fieldData.vectors) {
       byte[] vector = (byte[]) v;
       if (fieldData.hasMultiVectors == false) {
         assert vector.length == fieldData.dim;
       }
-      fieldData.dataOffsets[ordinal++] = vectorData.getFilePointer(); // start pointer for ordinal
+      int numVectorValues = vector.length / fieldData.dim;
       vectorData.writeBytes(vector, vector.length);
+      fieldData.dataOffsets[ordinal + 1] = fieldData.dataOffsets[ordinal] + numVectorValues;
     }
-    assert ordinal == fieldData.vectors.size()
-        : "end ordinal:" + ordinal + "!=" + "fieldData.vectors.size()=" + fieldData.vectors.size();
-    fieldData.dataOffsets[ordinal] = vectorData.getFilePointer(); // end pointer for last ordinal
   }
 
   private void writeSortingField(FieldWriter<?> fieldData, int maxDoc, Sorter.DocMap sortMap)
@@ -230,17 +226,15 @@ public final class Lucene99FlatVectorsWriter extends FlatVectorsWriter {
     int newOrd = 0;
     ByteBuffer buffer = null;
     fieldData.dataOffsets = new long[fieldData.vectors.size() + 1];
+    fieldData.dataOffsets[0] = 0;
     for (int ordinal : ordMap) {
       float[] vector = (float[]) fieldData.vectors.get(ordinal);
+      int numVectorValues = vector.length / fieldData.dim;
       final int vectorByteLength = resizeBufferAndWrite(buffer, vector);
-      fieldData.dataOffsets[newOrd++] = vectorData.getFilePointer(); // start offset for ordinal
       vectorData.writeBytes(buffer.array(), vectorByteLength);
+      fieldData.dataOffsets[newOrd + 1] = fieldData.dataOffsets[newOrd] + numVectorValues;
       buffer.clear();
     }
-    // TODO: skip calculating dataOffsets for multiVectors?
-    assert newOrd == fieldData.vectors.size()
-        : "ordinal end =" + newOrd + ", expected =" + fieldData.vectors.size();
-    fieldData.dataOffsets[newOrd] = vectorData.getFilePointer(); // end offset for last subOrdinal
     return vectorDataOffset;
   }
 
@@ -248,22 +242,20 @@ public final class Lucene99FlatVectorsWriter extends FlatVectorsWriter {
     long vectorDataOffset = vectorData.alignFilePointer(Float.BYTES);
     int newOrd = 0;
     fieldData.dataOffsets = new long[fieldData.vectors.size() + 1];
+    fieldData.dataOffsets[0] = 0;
     for (int ordinal : ordMap) {
       byte[] vector = (byte[]) fieldData.vectors.get(ordinal);
-      fieldData.dataOffsets[newOrd++] = vectorData.getFilePointer(); // start offset for ordinal
+      int numVectorValues = vector.length / fieldData.dim;
       vectorData.writeBytes(vector, vector.length);
+      fieldData.dataOffsets[newOrd + 1] = fieldData.dataOffsets[newOrd] + numVectorValues;
     }
-    // TODO: skip calculating dataOffsets for multiVectors?
-    assert newOrd == fieldData.vectors.size()
-        : "ordinal end =" + newOrd + ", expected =" + fieldData.vectors.size();
-    fieldData.dataOffsets[newOrd] = vectorData.getFilePointer(); // end offset for last subOrdinal
     return vectorDataOffset;
   }
 
   // Pending: pass dataOffsets in writeMeta and VectorValues()
   @Override
   public void mergeOneField(FieldInfo fieldInfo, MergeState mergeState) throws IOException {
-    // Since we know we will not be searching for additional indexing, we can just write the
+    // Since we know we will not be searching for additional indexing, we can just write
     // the vectors directly to the new segment.
     long vectorDataOffset = vectorData.alignFilePointer(Float.BYTES);
     // No need to use temporary file as we don't have to re-open for reading
@@ -319,12 +311,12 @@ public final class Lucene99FlatVectorsWriter extends FlatVectorsWriter {
 
       // tempVectorData is finally copied into vectorData
       // align dataOffsets for tempVectorData with the current file pointer for vectorData
-      if (docsAndOffsets.dataOffsets != null) {
-        long shift = vectorData.getFilePointer() - docsAndOffsets.dataOffsets[0];
-        for (int i = 0; i < docsAndOffsets.dataOffsets.length; i++) {
-          docsAndOffsets.dataOffsets[i] += shift;
-        }
-      }
+//      if (docsAndOffsets.dataOffsets != null) {
+//        long shift = vectorData.getFilePointer() - docsAndOffsets.dataOffsets[0];
+//        for (int i = 0; i < docsAndOffsets.dataOffsets.length; i++) {
+//          docsAndOffsets.dataOffsets[i] += shift;
+//        }
+//      }
 
       // This temp file will be accessed in a random-access fashion to construct the HNSW graph.
       // Note: don't use the context from the state, which is a flush/merge context, not expecting
@@ -441,16 +433,15 @@ public final class Lucene99FlatVectorsWriter extends FlatVectorsWriter {
 
     int ordinal = 0;
     long[] dataOffsets = new long[byteVectorValues.size() + 1];
+    dataOffsets[0] = 0;
     for (int docV = iter.nextDoc(); docV != NO_MORE_DOCS; docV = iter.nextDoc()) {
       // write vector
       byte[] binaryValue = byteVectorValues.vectorValue(iter.index());
-      dataOffsets[ordinal++] = output.getFilePointer();
+      int numVectorValues = binaryValue.length / byteVectorValues.dimension();
       output.writeBytes(binaryValue, binaryValue.length);
+      dataOffsets[ordinal + 1] = dataOffsets[ordinal] + numVectorValues;
       docsWithField.add(docV);
     }
-    assert ordinal == byteVectorValues.size()
-        : "ordinal [" + ordinal + "] != " + "byteVectorValues.size [" + byteVectorValues.size() + "]";
-    dataOffsets[ordinal] = output.getFilePointer();
     return new DocsAndOffsets(docsWithField, dataOffsets);
   }
 
@@ -465,19 +456,18 @@ public final class Lucene99FlatVectorsWriter extends FlatVectorsWriter {
     ByteBuffer buffer = null;
     int ordinal = 0;
     long[] dataOffsets = new long[floatVectorValues.size() + 1];
+    dataOffsets[0] = 0;
     KnnVectorValues.DocIndexIterator iter = floatVectorValues.iterator();
     for (int docV = iter.nextDoc(); docV != NO_MORE_DOCS; docV = iter.nextDoc()) {
       // write vector
       float[] value = floatVectorValues.vectorValue(iter.index());
+      int numVectorValues = value.length / floatVectorValues.dimension();
       final int valueByteLength = resizeBufferAndWrite(buffer, value);
-      dataOffsets[ordinal++] = output.getFilePointer();
       output.writeBytes(buffer.array(), valueByteLength);
+      dataOffsets[ordinal + 1] = dataOffsets[ordinal] + numVectorValues;
       docsWithField.add(docV);
       buffer.clear();
     }
-    assert ordinal == floatVectorValues.size()
-        : "ordinal [" + ordinal + "] != " + "floatVectorValues.size [" + floatVectorValues.size() + "]";
-    dataOffsets[ordinal] = output.getFilePointer();
     return new DocsAndOffsets(docsWithField, dataOffsets);
   }
 
@@ -508,8 +498,8 @@ public final class Lucene99FlatVectorsWriter extends FlatVectorsWriter {
     private boolean finished;
 
     private boolean hasMultiVectors = false;
-    /* Stores start and end offsets for the packed vector data written for each multi-vector value.
-     * dataOffsets[ordinal] holds the start offset. dataOffsets[ordinal+1] holds the end offset.
+    /* dataOffsets[ordinal] holds the number of vectors written before the ordinal. This is used to
+     * compute the start and end offsets for the packed vector data written for each multi-vector value.
      * Initialized before writing multi-vector fields.
      */
     private long[] dataOffsets = null;

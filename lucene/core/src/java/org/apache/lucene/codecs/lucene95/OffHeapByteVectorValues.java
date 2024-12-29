@@ -47,7 +47,21 @@ public abstract class OffHeapByteVectorValues extends ByteVectorValues implement
   protected final int byteSize;
   protected final VectorSimilarityFunction similarityFunction;
   protected final FlatVectorsScorer flatVectorsScorer;
+
+  /* Used to compute start and end offsets for vector values.
+   * dataOffsets.get(ordinal) returns number of vector values written before the ordinal
+   * This provides the ordinal's start offset in slice via `dataOffsets.get(ordinal) * byteSize * dimension`
+   */
   protected final LongValues dataOffsets;
+
+  /* Convenient default for vector fields with one vector per ordinal (single valued vectors).
+   */
+  public static LongValues singleVectorDataOffsets = new LongValues() {
+    @Override
+    public long get(long index) {
+      return index;
+    }
+  };
 
   OffHeapByteVectorValues(
       int dimension,
@@ -82,8 +96,8 @@ public abstract class OffHeapByteVectorValues extends ByteVectorValues implement
   public byte[] allVectorValues(int targetOrd) throws IOException {
     // TODO: cache value read for last ordinal
     // TODO: can we avoid reallocations by using bytebuffer.slice() with array()
-    long offset = dataOffsets.get(targetOrd);
-    int length = (int) (dataOffsets.get(targetOrd + 1) - offset);
+    long offset = dataOffsets.get(targetOrd) * byteSize;
+    int length = (int) (dataOffsets.get(targetOrd + 1) - dataOffsets.get(targetOrd)) * dimension;
     byte[] ordinalMultiVector = new byte[length];
     slice.seek(offset);
     slice.readBytes(ordinalMultiVector, 0, length);
@@ -95,7 +109,7 @@ public abstract class OffHeapByteVectorValues extends ByteVectorValues implement
     if (lastOrd == ordinal && lastSubOrd == subOrdinal) {
       return binaryValue;
     }
-    long offset = dataOffsets.get(ordinal) + (long) subOrdinal * byteSize;
+    long offset = (dataOffsets.get(ordinal) + subOrdinal) * byteSize;
     slice.seek(offset);
     slice.readBytes(byteBuffer.array(), byteBuffer.arrayOffset(), byteSize);
     lastOrd = ordinal;

@@ -45,7 +45,21 @@ public abstract class OffHeapFloatVectorValues extends FloatVectorValues impleme
   protected final float[] value;
   protected final VectorSimilarityFunction similarityFunction;
   protected final FlatVectorsScorer flatVectorsScorer;
+
+  /* Used to compute start and end offsets for vector values.
+   * dataOffsets.get(ordinal) returns number of vector values written before the ordinal
+   * This provides the ordinal's start offset in slice via `dataOffsets.get(ordinal) * byteSize * dimension`
+   */
   protected final LongValues dataOffsets;
+
+  /* Convenient default for vector fields with one vector per ordinal (single valued vectors).
+   */
+  public static LongValues singleVectorDataOffsets = new LongValues() {
+    @Override
+    public long get(long index) {
+      return index;
+    }
+  };
 
   OffHeapFloatVectorValues(
       int dimension,
@@ -84,8 +98,8 @@ public abstract class OffHeapFloatVectorValues extends FloatVectorValues impleme
   public float[] allVectorValues(int targetOrd) throws IOException {
     // TODO: we can cache last fetched multi-vector, need to handle overlap with vectorValue(ord, subOrd)
     // TODO: can we avoid reallocations by using bytebuffer.slice() with array()
-    long offset = dataOffsets.get(targetOrd);
-    int length = (int) (dataOffsets.get(targetOrd + 1) - offset) / VectorEncoding.FLOAT32.byteSize;
+    long offset = dataOffsets.get(targetOrd) * byteSize;
+    int length = (int) (dataOffsets.get(targetOrd + 1) - dataOffsets.get(targetOrd)) * dimension;
     float[] vectorValues = new float[length];
     slice.seek(offset);
     slice.readFloats(vectorValues, 0, length);
@@ -97,7 +111,7 @@ public abstract class OffHeapFloatVectorValues extends FloatVectorValues impleme
     if (lastOrd == ordinal && lastSubOrd == subOrdinal) {
       return value;
     }
-    long offset = dataOffsets.get(ordinal) + (long) subOrdinal * byteSize;
+    long offset = (dataOffsets.get(ordinal) + subOrdinal) * byteSize;
     slice.seek(offset);
     slice.readFloats(value, 0, value.length);
     lastOrd = ordinal;
@@ -188,10 +202,12 @@ public abstract class OffHeapFloatVectorValues extends FloatVectorValues impleme
       DocIndexIterator iterator = copy.iterator();
       RandomVectorScorer randomVectorScorer =
           flatVectorsScorer.getRandomVectorScorer(similarityFunction, copy, query);
+      // defaults to the single-valued vector case and uses only subOrdinal 0 for scoring
+      // Override to use multiple vector values per ordinal
       return new VectorScorer() {
         @Override
         public float score() throws IOException {
-          return randomVectorScorer.score(iterator.docID());
+          return randomVectorScorer.score(iterator.docID(), 0);
         }
 
         @Override
@@ -283,10 +299,13 @@ public abstract class OffHeapFloatVectorValues extends FloatVectorValues impleme
       DocIndexIterator iterator = copy.iterator();
       RandomVectorScorer randomVectorScorer =
           flatVectorsScorer.getRandomVectorScorer(similarityFunction, copy, query);
+
+      // defaults to the single-valued vector case and uses only subOrdinal 0 for scoring
+      // Override to use multiple vector values per ordinal
       return new VectorScorer() {
         @Override
         public float score() throws IOException {
-          return randomVectorScorer.score(iterator.index());
+          return randomVectorScorer.score(iterator.index(), 0);
         }
 
         @Override
