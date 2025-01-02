@@ -58,7 +58,7 @@ public class MultiVectorDataOffsetsReaderConfiguration {
       int directMonotonicBlockShift,
       IndexOutput outputMeta,
       IndexOutput vectorData,
-      long[] multiVectorDataOffsets)
+      int[] multiVectorDataOffsets)
       throws IOException {
     long start = vectorData.getFilePointer();
     outputMeta.writeLong(start); // vector data offset
@@ -68,7 +68,7 @@ public class MultiVectorDataOffsetsReaderConfiguration {
     final DirectMonotonicWriter dataOffsetsWriter =
         DirectMonotonicWriter.getInstance(
             outputMeta, vectorData, numValues, directMonotonicBlockShift);
-    for (long offset : multiVectorDataOffsets) {
+    for (int offset : multiVectorDataOffsets) {
       dataOffsetsWriter.add(offset);
     }
     dataOffsetsWriter.finish();
@@ -80,7 +80,7 @@ public class MultiVectorDataOffsetsReaderConfiguration {
    * DirectMonotonicReader} over MultiVectorDataOffsets
    *
    * @param inputMeta the inputMeta, previously written to via {@link #writeStoredMeta(int,
-   *     IndexOutput, IndexOutput, long[])}
+   *     IndexOutput, IndexOutput, int[])}
    * @return the configuration required to read multiVector data offsets
    * @throws IOException thrown when reading data fails
    */

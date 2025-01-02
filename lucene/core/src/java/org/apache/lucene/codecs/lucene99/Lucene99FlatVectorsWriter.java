@@ -172,7 +172,7 @@ public final class Lucene99FlatVectorsWriter extends FlatVectorsWriter {
   private void writeFloat32Vectors(FieldWriter<?> fieldData) throws IOException {
     int ordinal = 0;
     ByteBuffer buffer = null;
-    fieldData.dataOffsets = new long[fieldData.vectors.size() + 1];
+    fieldData.dataOffsets = new int[fieldData.vectors.size() + 1];
     fieldData.dataOffsets[0] = 0;
     for (Object v : fieldData.vectors) {
       float[] vector = (float[])v;
@@ -189,7 +189,7 @@ public final class Lucene99FlatVectorsWriter extends FlatVectorsWriter {
 
   private void writeByteVectors(FieldWriter<?> fieldData) throws IOException {
     int ordinal = 0;
-    fieldData.dataOffsets = new long[fieldData.vectors.size() + 1];
+    fieldData.dataOffsets = new int[fieldData.vectors.size() + 1];
     fieldData.dataOffsets[0] = 0;
     for (Object v : fieldData.vectors) {
       byte[] vector = (byte[]) v;
@@ -225,7 +225,7 @@ public final class Lucene99FlatVectorsWriter extends FlatVectorsWriter {
     long vectorDataOffset = vectorData.alignFilePointer(Float.BYTES);
     int newOrd = 0;
     ByteBuffer buffer = null;
-    fieldData.dataOffsets = new long[fieldData.vectors.size() + 1];
+    fieldData.dataOffsets = new int[fieldData.vectors.size() + 1];
     fieldData.dataOffsets[0] = 0;
     for (int ordinal : ordMap) {
       float[] vector = (float[]) fieldData.vectors.get(ordinal);
@@ -241,7 +241,7 @@ public final class Lucene99FlatVectorsWriter extends FlatVectorsWriter {
   private long writeSortedByteVectors(FieldWriter<?> fieldData, int[] ordMap) throws IOException {
     long vectorDataOffset = vectorData.alignFilePointer(Float.BYTES);
     int newOrd = 0;
-    fieldData.dataOffsets = new long[fieldData.vectors.size() + 1];
+    fieldData.dataOffsets = new int[fieldData.vectors.size() + 1];
     fieldData.dataOffsets[0] = 0;
     for (int ordinal : ordMap) {
       byte[] vector = (byte[]) fieldData.vectors.get(ordinal);
@@ -392,7 +392,7 @@ public final class Lucene99FlatVectorsWriter extends FlatVectorsWriter {
       long vectorDataOffset,
       long vectorDataLength,
       DocsWithFieldSet docsWithField,
-      long[] multiVectorDataOffsets)
+      int[] multiVectorDataOffsets)
       throws IOException {
     meta.writeInt(field.number);
     meta.writeInt(field.getVectorEncoding().ordinal());
@@ -415,7 +415,7 @@ public final class Lucene99FlatVectorsWriter extends FlatVectorsWriter {
   }
 
   /* Utility class to collect DocsWithFieldSet and DataOffsets for multi-vectors */
-  private record DocsAndOffsets(DocsWithFieldSet docsWithField, long[] dataOffsets) {
+  private record DocsAndOffsets(DocsWithFieldSet docsWithField, int[] dataOffsets) {
     DocsAndOffsets {
       assert dataOffsets == null || dataOffsets.length == docsWithField.cardinality() + 1;
     }
@@ -432,7 +432,7 @@ public final class Lucene99FlatVectorsWriter extends FlatVectorsWriter {
     KnnVectorValues.DocIndexIterator iter = byteVectorValues.iterator();
 
     int ordinal = 0;
-    long[] dataOffsets = new long[byteVectorValues.size() + 1];
+    int[] dataOffsets = new int[byteVectorValues.size() + 1];
     dataOffsets[0] = 0;
     for (int docV = iter.nextDoc(); docV != NO_MORE_DOCS; docV = iter.nextDoc()) {
       // write vector
@@ -455,7 +455,7 @@ public final class Lucene99FlatVectorsWriter extends FlatVectorsWriter {
     DocsWithFieldSet docsWithField = new DocsWithFieldSet();
     ByteBuffer buffer = null;
     int ordinal = 0;
-    long[] dataOffsets = new long[floatVectorValues.size() + 1];
+    int[] dataOffsets = new int[floatVectorValues.size() + 1];
     dataOffsets[0] = 0;
     KnnVectorValues.DocIndexIterator iter = floatVectorValues.iterator();
     for (int docV = iter.nextDoc(); docV != NO_MORE_DOCS; docV = iter.nextDoc()) {
@@ -502,7 +502,7 @@ public final class Lucene99FlatVectorsWriter extends FlatVectorsWriter {
      * compute the start and end offsets for the packed vector data written for each multi-vector value.
      * Initialized before writing multi-vector fields.
      */
-    private long[] dataOffsets = null;
+    private int[] dataOffsets = null;
 
     private int lastDocID = -1;
 
