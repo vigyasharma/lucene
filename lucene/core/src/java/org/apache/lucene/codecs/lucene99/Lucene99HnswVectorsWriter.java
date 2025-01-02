@@ -610,6 +610,7 @@ public final class Lucene99HnswVectorsWriter extends KnnVectorsWriter {
                 + "\" appears more than once in this document (only one value is allowed per field). "
                 + "Multi-Vectors are accepted as a single array of packed vector values.");
       }
+      // TODO: support passing multi-vector values in separate addValue() calls
       flatFieldVectorsWriter.addValue(docID, vectorValue);
 
       int dimension = fieldInfo.getVectorDimension();
