@@ -319,7 +319,7 @@ public class HnswGraphBuilder implements HnswBuilder {
     return now;
   }
 
-  private void addDiverseNeighbors(int level, int node, NeighborArray candidates)
+  private void addDiverseNeighbors(int level, long node, NeighborArray candidates)
       throws IOException {
     /* For each of the beamWidth nearest candidates (going from best to worst), select it only if it
      * is closer to target than it is to any of the already-selected neighbors (ie selected in this method,
@@ -339,7 +339,7 @@ public class HnswGraphBuilder implements HnswBuilder {
       if (mask[i] == false) {
         continue;
       }
-      int nbr = candidates.nodes()[i];
+      long nbr = candidates.nodes()[i];
       if (hnswLock != null) {
         Lock lock = hnswLock.write(level, nbr);
         try {
@@ -366,7 +366,7 @@ public class HnswGraphBuilder implements HnswBuilder {
     for (int i = candidates.size() - 1; neighbors.size() < maxConnOnLevel && i >= 0; i--) {
       // compare each neighbor (in distance order) against the closer neighbors selected so far,
       // only adding it if it is closer to the target than to any of the other selected neighbors
-      int cNode = candidates.nodes()[i];
+      long cNode = candidates.nodes()[i];
       float cScore = candidates.scores()[i];
       assert cNode <= hnsw.maxNodeId();
       if (diversityCheck(cNode, cScore, neighbors)) {
@@ -397,7 +397,7 @@ public class HnswGraphBuilder implements HnswBuilder {
    * @param neighbors the neighbors selected so far
    * @return whether the candidate is diverse given the existing neighbors
    */
-  private boolean diversityCheck(int candidate, float score, NeighborArray neighbors)
+  private boolean diversityCheck(long candidate, float score, NeighborArray neighbors)
       throws IOException {
     RandomVectorScorer scorer = scorerSupplier.scorer(candidate);
     for (int i = 0; i < neighbors.size(); i++) {
@@ -461,7 +461,7 @@ public class HnswGraphBuilder implements HnswBuilder {
       // try for more connections? We only do one since otherwise they may become full
       // while linking
       GraphBuilderKnnCollector beam = new GraphBuilderKnnCollector(2);
-      int[] eps = new int[1];
+      long[] eps = new long[1];
       for (Component c : components) {
         if (c != c0) {
           if (c.start() == NO_MORE_DOCS) {
@@ -479,7 +479,7 @@ public class HnswGraphBuilder implements HnswBuilder {
           graphSearcher.searchLevel(beam, scorer, level, eps, hnsw, notFullyConnected);
           boolean linked = false;
           while (beam.size() > 0) {
-            int c0node = beam.popNode();
+            long c0node = beam.popNode();
             if (c0node == c.start() || notFullyConnected.get(c0node) == false) {
               continue;
             }
@@ -507,7 +507,7 @@ public class HnswGraphBuilder implements HnswBuilder {
 
   // Try to link two nodes bidirectionally; the forward connection will always be made.
   // Update notFullyConnected.
-  private void link(int level, int n0, int n1, float score, FixedBitSet notFullyConnected) {
+  private void link(int level, long n0, long n1, float score, FixedBitSet notFullyConnected) {
     NeighborArray nbr0 = hnsw.getNeighbors(level, n0);
     NeighborArray nbr1 = hnsw.getNeighbors(level, n1);
     // must subtract 1 here since the nodes array is one larger than the configured

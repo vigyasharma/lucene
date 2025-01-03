@@ -30,6 +30,7 @@ import org.apache.lucene.index.FilterLeafReader;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.util.FixedBitSet;
+import org.apache.lucene.util.LongBitSet;
 
 /** Utilities for use in tests involving HNSW graphs */
 public class HnswUtil {
@@ -97,7 +98,7 @@ public class HnswUtil {
 
   // Finds orphaned components on the graph level.
   static List<Component> components(
-      HnswGraph hnsw, int level, FixedBitSet notFullyConnected, int maxConn) throws IOException {
+      HnswGraph hnsw, int level, LongBitSet notFullyConnected, int maxConn) throws IOException {
     List<Component> components = new ArrayList<>();
     FixedBitSet connectedNodes = new FixedBitSet(hnsw.size());
     assert hnsw.size() == hnsw.getNodesOnLevel(0).size();

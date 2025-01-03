@@ -87,7 +87,7 @@ public class NeighborArray {
    * @param nodeId node Id of the owner of this NeighbourArray
    */
   public void addAndEnsureDiversity(
-      long newNode, float newScore, int nodeId, RandomVectorScorerSupplier scorerSupplier)
+      long newNode, float newScore, long nodeId, RandomVectorScorerSupplier scorerSupplier)
       throws IOException {
     addOutOfOrder(newNode, newScore);
     if (size < nodes.length) {

@@ -102,7 +102,7 @@ public class HnswGraphSearcher {
       throws IOException {
     int ep = graphSearcher.findBestEntryPoint(scorer, graph, knnCollector);
     if (ep != -1) {
-      graphSearcher.searchLevel(knnCollector, scorer, 0, new int[] {ep}, graph, acceptOrds);
+      graphSearcher.searchLevel(knnCollector, scorer, 0, new long[] {ep}, graph, acceptOrds);
     }
   }
 
@@ -121,7 +121,7 @@ public class HnswGraphSearcher {
    */
   public HnswGraphBuilder.GraphBuilderKnnCollector searchLevel(
       // Note: this is only public because Lucene91HnswGraphBuilder needs it
-      RandomVectorScorer scorer, int topK, int level, final int[] eps, HnswGraph graph)
+      RandomVectorScorer scorer, int topK, int level, final long[] eps, HnswGraph graph)
       throws IOException {
     HnswGraphBuilder.GraphBuilderKnnCollector results =
         new HnswGraphBuilder.GraphBuilderKnnCollector(topK);
@@ -139,9 +139,9 @@ public class HnswGraphSearcher {
    *     exceeded
    * @throws IOException When accessing the vector fails
    */
-  private int findBestEntryPoint(RandomVectorScorer scorer, HnswGraph graph, KnnCollector collector)
+  private long findBestEntryPoint(RandomVectorScorer scorer, HnswGraph graph, KnnCollector collector)
       throws IOException {
-    int currentEp = graph.entryNode();
+    long currentEp = graph.entryNode();
     if (currentEp == -1 || graph.numLevels() == 1) {
       return currentEp;
     }
@@ -198,7 +198,7 @@ public class HnswGraphSearcher {
 
     prepareScratchState(size);
 
-    for (int ep : eps) {
+    for (long ep : eps) {
       if (visited.getAndSet(ep) == false) {
         if (results.earlyTerminated()) {
           break;
@@ -222,7 +222,7 @@ public class HnswGraphSearcher {
         break;
       }
 
-      int topCandidateNode = candidates.pop();
+      long topCandidateNode = candidates.pop();
       graphSeek(graph, level, topCandidateNode);
       int friendOrd;
       while ((friendOrd = graphNextNeighbor(graph)) != NO_MORE_DOCS) {
@@ -262,24 +262,24 @@ public class HnswGraphSearcher {
    *
    * @throws IOException when seeking the graph
    */
-  void graphSeek(HnswGraph graph, int level, int targetNode) throws IOException {
+  void graphSeek(HnswGraph graph, int level, long targetNode) throws IOException {
     graph.seek(level, targetNode);
   }
 
   /**
-   * Get the next neighbor from the graph, you must call {@link #graphSeek(HnswGraph, int, int)}
+   * Get the next neighbor from the graph, you must call {@link #graphSeek(HnswGraph, int, long)}
    * before calling this method. The default implementation will just call {@link
    * HnswGraph#nextNeighbor()}
    *
    * @return see {@link HnswGraph#nextNeighbor()}
    * @throws IOException when advance neighbors
    */
-  int graphNextNeighbor(HnswGraph graph) throws IOException {
+  long graphNextNeighbor(HnswGraph graph) throws IOException {
     return graph.nextNeighbor();
   }
 
   private static int getGraphSize(HnswGraph graph) {
-    return graph.maxNodeId() + 1;
+    return graph.size();
   }
 
   /**
@@ -300,13 +300,13 @@ public class HnswGraphSearcher {
     }
 
     @Override
-    void graphSeek(HnswGraph graph, int level, int targetNode) {
+    void graphSeek(HnswGraph graph, int level, long targetNode) {
       cur = ((OnHeapHnswGraph) graph).getNeighbors(level, targetNode);
       upto = -1;
     }
 
     @Override
-    int graphNextNeighbor(HnswGraph graph) {
+    long graphNextNeighbor(HnswGraph graph) {
       if (++upto < cur.size()) {
         return cur.nodes()[upto];
       }

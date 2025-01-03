@@ -35,21 +35,21 @@ final class HnswLock {
     }
   }
 
-  Lock read(int level, int node) {
-    int lockid = hash(level, node) % NUM_LOCKS;
+  Lock read(int level, long node) {
+    int lockid = hash(level, HnswUtil.ordinal(node), HnswUtil.subOrdinal(node)) % NUM_LOCKS;
     Lock lock = locks[lockid].readLock();
     lock.lock();
     return lock;
   }
 
-  Lock write(int level, int node) {
-    int lockid = hash(level, node) % NUM_LOCKS;
+  Lock write(int level, long node) {
+    int lockid = hash(level, HnswUtil.ordinal(node), HnswUtil.subOrdinal(node)) % NUM_LOCKS;
     Lock lock = locks[lockid].writeLock();
     lock.lock();
     return lock;
   }
 
-  private static int hash(int v1, int v2) {
-    return v1 * 31 + v2;
+  private static int hash(int v1, int v2, int v3) {
+    return v1 * 53 + v2 * 31 + v3;
   }
 }
