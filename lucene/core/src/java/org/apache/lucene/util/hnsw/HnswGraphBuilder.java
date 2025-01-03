@@ -193,25 +193,25 @@ public class HnswGraphBuilder implements HnswBuilder {
   /** add vectors in range [minOrd, maxOrd)
    * Should only be used for single-valued vector fields, since all values are indexed with subOrdinal = 0.
    */
-//  protected void addVectors(int minOrd, int maxOrd) throws IOException {
-//    if (frozen) {
-//      throw new IllegalStateException("This HnswGraphBuilder is frozen and cannot be updated");
-//    }
-//    long start = System.nanoTime(), t = start;
-//    if (infoStream.isEnabled(HNSW_COMPONENT)) {
-//      infoStream.message(HNSW_COMPONENT, "addVectors [" + minOrd + " " + maxOrd + ")");
-//    }
-//    for (int node = minOrd; node < maxOrd; node++) {
-//      addGraphNode(node);
-//      if ((node % 10000 == 0) && infoStream.isEnabled(HNSW_COMPONENT)) {
-//        t = printGraphBuildStatus(node, start, t);
-//      }
-//    }
-//  }
+  protected void addVectors(int minOrd, int maxOrd) throws IOException {
+    if (frozen) {
+      throw new IllegalStateException("This HnswGraphBuilder is frozen and cannot be updated");
+    }
+    long start = System.nanoTime(), t = start;
+    if (infoStream.isEnabled(HNSW_COMPONENT)) {
+      infoStream.message(HNSW_COMPONENT, "addVectors [" + minOrd + " " + maxOrd + ")");
+    }
+    for (int node = minOrd; node < maxOrd; node++) {
+      addGraphNode(node);
+      if ((node % 10000 == 0) && infoStream.isEnabled(HNSW_COMPONENT)) {
+        t = printGraphBuildStatus(node, start, t);
+      }
+    }
+  }
 
-//  private void addVectors(int maxOrd) throws IOException {
-//    addVectors(0, maxOrd);
-//  }
+  private void addVectors(int maxOrd) throws IOException {
+    addVectors(0, maxOrd);
+  }
 
   @Override
   public void addGraphNode(long node) throws IOException {
@@ -255,7 +255,7 @@ public class HnswGraphBuilder implements HnswBuilder {
       curMaxLevel = hnsw.numLevels() - 1;
       // NOTE: the entry node and max level may not be paired, but because we get the level first
       // we ensure that the entry node we get later will always exist on the curMaxLevel
-      int[] eps = new int[] {hnsw.entryNode()};
+      long[] eps = new long[] {hnsw.entryNode()};
 
       // we first do the search from top to bottom
       // for levels > nodeLevel search with topk = 1
@@ -550,11 +550,11 @@ public class HnswGraphBuilder implements HnswBuilder {
       return queue.size();
     }
 
-    public int popNode() {
+    public long popNode() {
       return queue.pop();
     }
 
-    public int[] popUntilNearestKNodes() {
+    public long[] popUntilNearestKNodes() {
       while (size() > k()) {
         queue.pop();
       }

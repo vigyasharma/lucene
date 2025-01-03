@@ -189,7 +189,7 @@ public class HnswGraphSearcher {
       KnnCollector results,
       RandomVectorScorer scorer,
       int level,
-      final int[] eps,
+      final long[] eps,
       HnswGraph graph,
       Bits acceptOrds)
       throws IOException {

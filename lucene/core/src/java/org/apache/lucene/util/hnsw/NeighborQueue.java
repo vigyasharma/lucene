@@ -19,37 +19,36 @@ package org.apache.lucene.util.hnsw;
 
 import org.apache.lucene.util.LongHeap;
 import org.apache.lucene.util.NumericUtils;
+import org.apache.lucene.util.PriorityQueue;
+
+import java.util.Iterator;
+import java.util.Objects;
 
 /**
- * NeighborQueue uses a {@link LongHeap} to store lists of arcs in an HNSW graph, represented as a
- * neighbor node id with an associated score packed together as a sortable long, which is sorted
- * primarily by score. The queue provides both fixed-size and unbounded operations via {@link
- * #insertWithOverflow(int, float)} and {@link #add(int, float)}, and provides MIN and MAX heap
- * subclasses.
+ * NeighborQueue uses a {@link PriorityQueue} to store lists of arcs in an HNSW graph, represented as a
+ * neighbor node id with an associated score.
+ * The queue provides both fixed-size and unbounded operations via {@link #insertWithOverflow(long, float)}
+ * and {@link #add(long, float)}, and provides MIN and MAX heap subclasses.
  */
 public class NeighborQueue {
 
-  private enum Order {
-    MIN_HEAP {
-      @Override
-      long apply(long v) {
-        return v;
-      }
-    },
-    MAX_HEAP {
-      @Override
-      long apply(long v) {
-        // This cannot be just `-v` since Long.MIN_VALUE doesn't have a positive counterpart. It
-        // needs a function that returns MAX_VALUE for MIN_VALUE and vice-versa.
-        return -1 - v;
-      }
-    };
+  /** Stores the score and nodeId for an arc in the HNSW graph. */
+  private record ScoreNode (int score, long node) {
+    ScoreNode(float score, long node) {
+      this(NumericUtils.floatToSortableInt(score), node);
+    }
 
-    abstract long apply(long v);
+    @Override
+    public boolean equals(Object obj) {
+      if (obj instanceof ScoreNode == false) {
+        return false;
+      }
+      ScoreNode other = (ScoreNode) obj;
+      return other.score == this.score && other.node == this.node;
+    }
   }
 
-  private final LongHeap heap;
-  private final Order order;
+  private final PriorityQueue<ScoreNode> heap;
 
   // Used to track the number of neighbors visited during a single graph traversal
   private int visitedCount;
@@ -57,8 +56,16 @@ public class NeighborQueue {
   private boolean incomplete;
 
   public NeighborQueue(int initialSize, boolean maxHeap) {
-    this.heap = new LongHeap(initialSize);
-    this.order = maxHeap ? Order.MAX_HEAP : Order.MIN_HEAP;
+    this.heap = new PriorityQueue<ScoreNode>(initialSize) {
+      @Override
+      protected boolean lessThan(ScoreNode a, ScoreNode b) {
+        boolean minHeapComparison = (a.score < b.score || (a.score == b.score && a.node < b.node));
+        if (maxHeap == false) {
+          return minHeapComparison;
+        }
+        return !minHeapComparison;
+      }
+    };
   }
 
   /**
@@ -74,8 +81,8 @@ public class NeighborQueue {
    * @param newNode the neighbor node id
    * @param newScore the score of the neighbor, relative to some other node
    */
-  public void add(int newNode, float newScore) {
-    heap.push(encode(newNode, newScore));
+  public void add(long newNode, float newScore) {
+    heap.add(new ScoreNode(newScore, newNode));
   }
 
   /**
@@ -87,60 +94,31 @@ public class NeighborQueue {
    * @param newNode the neighbor node id
    * @param newScore the score of the neighbor, relative to some other node
    */
-  public boolean insertWithOverflow(int newNode, float newScore) {
-    return heap.insertWithOverflow(encode(newNode, newScore));
-  }
-
-  /**
-   * Encodes the node ID and its similarity score as long, preserving the Lucene tie-breaking rule
-   * that when two scores are equal, the smaller node ID must win.
-   *
-   * <p>The most significant 32 bits represent the float score, encoded as a sortable int.
-   *
-   * <p>The least significant 32 bits represent the node ID.
-   *
-   * <p>The bits representing the node ID are complemented to guarantee the win for the smaller node
-   * Id.
-   *
-   * <p>The AND with 0xFFFFFFFFL (a long with first 32 bits as 1) is necessary to obtain a long that
-   * has:
-   * <li>The most significant 32 bits set to 0
-   * <li>The least significant 32 bits represent the node ID.
-   *
-   * @param node the node ID
-   * @param score the node score
-   * @return the encoded score, node ID
-   */
-  private long encode(int node, float score) {
-    return order.apply(
-        (((long) NumericUtils.floatToSortableInt(score)) << 32) | (0xFFFFFFFFL & ~node));
-  }
-
-  private float decodeScore(long heapValue) {
-    return NumericUtils.sortableIntToFloat((int) (order.apply(heapValue) >> 32));
-  }
-
-  private int decodeNodeId(long heapValue) {
-    return (int) ~(order.apply(heapValue));
+  public boolean insertWithOverflow(long newNode, float newScore) {
+    ScoreNode ele = new ScoreNode(newScore, newNode);
+    ScoreNode res = heap.insertWithOverflow(ele);
+    return res == null || res.equals(ele) == false;  // true if ele was added successfully
   }
 
   /** Removes the top element and returns its node id. */
-  public int pop() {
-    return decodeNodeId(heap.pop());
+  public long pop() {
+    return Objects.requireNonNull(heap.pop(), "The heap is empty").node;
   }
 
-  public int[] nodes() {
+  public long[] nodes() {
     int size = size();
-    int[] nodes = new int[size];
-    for (int i = 0; i < size; i++) {
-      nodes[i] = decodeNodeId(heap.get(i + 1));
+    long[] nodes = new long[size];
+    Iterator<ScoreNode> it = heap.iterator();
+    int i = 0;
+    while (it.hasNext()) {
+      nodes[i++]  = it.next().node;
     }
     return nodes;
   }
 
   /** Returns the top element's node id. */
-  public int topNode() {
-    return decodeNodeId(heap.top());
+  public long topNode() {
+    return Objects.requireNonNull(heap.top(), "The heap is empty").node;
   }
 
   /**
@@ -148,7 +126,8 @@ public class NeighborQueue {
    * heap this is the maximum score.
    */
   public float topScore() {
-    return decodeScore(heap.top());
+    int score = Objects.requireNonNull(heap.top(), "The heap is empty").score;
+    return NumericUtils.sortableIntToFloat(score);
   }
 
   public void clear() {
