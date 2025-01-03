@@ -27,6 +27,8 @@ import java.util.PrimitiveIterator;
 import org.apache.lucene.index.FloatVectorValues;
 import org.apache.lucene.internal.hppc.IntArrayList;
 import org.apache.lucene.internal.hppc.IntCursor;
+import org.apache.lucene.internal.hppc.LongArrayList;
+import org.apache.lucene.internal.hppc.LongCursor;
 
 /**
  * Hierarchical Navigable Small World graph. Provides efficient approximate nearest neighbor search
@@ -63,29 +65,32 @@ public abstract class HnswGraph {
    * @param target ordinal of a node in the graph, must be &ge; 0 and &lt; {@link
    *     FloatVectorValues#size()}.
    */
-  public abstract void seek(int level, int target) throws IOException;
+  public abstract void seek(int level, long target) throws IOException;
 
   /** Returns the number of nodes in the graph */
   public abstract int size();
 
-  /** Returns max node id, inclusive. Normally this value will be size - 1. */
-  public int maxNodeId() {
+  /** Returns max node id, inclusive.
+   * For single valued vector fields, this value will normally be size - 1.
+   */
+  // TODO: fix uses, then uncomment
+  public long maxNodeId() {
     return size() - 1;
   }
 
   /**
    * Iterates over the neighbor list. It is illegal to call this method after it returns
-   * NO_MORE_DOCS without calling {@link #seek(int, int)}, which resets the iterator.
+   * NO_MORE_DOCS without calling {@link #seek(int, long)}, which resets the iterator.
    *
-   * @return a node ordinal in the graph, or NO_MORE_DOCS if the iteration is complete.
+   * @return a node in the graph, or NO_MORE_DOCS if the iteration is complete.
    */
-  public abstract int nextNeighbor() throws IOException;
+  public abstract long nextNeighbor() throws IOException;
 
   /** Returns the number of levels of the graph */
   public abstract int numLevels() throws IOException;
 
   /** Returns graph's entry point on the top level * */
-  public abstract int entryNode() throws IOException;
+  public abstract long entryNode() throws IOException;
 
   /**
    * Get all nodes on a given level as node 0th ordinals. The nodes are NOT guaranteed to be
@@ -101,12 +106,12 @@ public abstract class HnswGraph {
       new HnswGraph() {
 
         @Override
-        public int nextNeighbor() {
+        public long nextNeighbor() {
           return NO_MORE_DOCS;
         }
 
         @Override
-        public void seek(int level, int target) {}
+        public void seek(int level, long target) {}
 
         @Override
         public int size() {
@@ -119,7 +124,7 @@ public abstract class HnswGraph {
         }
 
         @Override
-        public int entryNode() {
+        public long entryNode() {
           return 0;
         }
 
@@ -134,7 +139,7 @@ public abstract class HnswGraph {
    * number of nodes to be iterated over. The nodes are NOT guaranteed to be presented in any
    * particular order.
    */
-  public abstract static class NodesIterator implements PrimitiveIterator.OfInt {
+  public abstract static class NodesIterator implements PrimitiveIterator.OfLong {
     protected final int size;
 
     /** Constructor for iterator based on the size */
@@ -153,12 +158,12 @@ public abstract class HnswGraph {
      * @param dest where to put the integers
      * @return The number of integers written to `dest`
      */
-    public abstract int consume(int[] dest);
+    public abstract int consume(long[] dest);
 
-    public static int[] getSortedNodes(NodesIterator nodesOnLevel) {
-      int[] sortedNodes = new int[nodesOnLevel.size()];
+    public static long[] getSortedNodes(NodesIterator nodesOnLevel) {
+      long[] sortedNodes = new long[nodesOnLevel.size()];
       for (int n = 0; nodesOnLevel.hasNext(); n++) {
-        sortedNodes[n] = nodesOnLevel.nextInt();
+        sortedNodes[n] = nodesOnLevel.nextLong();
       }
       Arrays.sort(sortedNodes);
       return sortedNodes;
@@ -167,27 +172,28 @@ public abstract class HnswGraph {
 
   /** NodesIterator that accepts nodes as an integer array. */
   public static class ArrayNodesIterator extends NodesIterator {
-    static NodesIterator EMPTY = new ArrayNodesIterator(0);
+    static NodesIterator EMPTY = new ArrayNodesIterator(null, 0);
 
-    private final int[] nodes;
+    private final long[] nodes;
     private int cur = 0;
 
     /** Constructor for iterator based on integer array representing nodes */
-    public ArrayNodesIterator(int[] nodes, int size) {
+    public ArrayNodesIterator(long[] nodes, int size) {
       super(size);
-      assert nodes != null;
+      assert size > 0 || nodes != null;
       assert size <= nodes.length;
       this.nodes = nodes;
     }
 
-    /** Constructor for iterator based on the size */
-    public ArrayNodesIterator(int size) {
-      super(size);
-      this.nodes = null;
-    }
+    // no longer valid with subOrd,Ord packing into a long node
+//    /** Constructor for iterator based on the size */
+//    public ArrayNodesIterator(int size) {
+//      super(size);
+//      this.nodes = null;
+//    }
 
     @Override
-    public int consume(int[] dest) {
+    public int consume(long[] dest) {
       if (hasNext() == false) {
         throw new NoSuchElementException();
       }
@@ -204,7 +210,7 @@ public abstract class HnswGraph {
     }
 
     @Override
-    public int nextInt() {
+    public long nextLong() {
       if (hasNext() == false) {
         throw new NoSuchElementException();
       }
@@ -223,30 +229,35 @@ public abstract class HnswGraph {
 
   /** Nodes iterator based on set representation of nodes. */
   public static class CollectionNodesIterator extends NodesIterator {
-    Iterator<IntCursor> nodes;
+    Iterator<LongCursor> nodes;
 
     /** Constructor for iterator based on collection representing nodes */
-    public CollectionNodesIterator(IntArrayList nodes) {
+    public CollectionNodesIterator(LongArrayList nodes) {
       super(nodes.size());
       this.nodes = nodes.iterator();
     }
 
+    public CollectionNodesIterator(int size, Iterator<LongCursor> nodes) {
+      super(size);
+      this.nodes = nodes;
+    }
+
     @Override
-    public int consume(int[] dest) {
+    public int consume(long[] dest) {
       if (hasNext() == false) {
         throw new NoSuchElementException();
       }
 
       int destIndex = 0;
       while (hasNext() && destIndex < dest.length) {
-        dest[destIndex++] = nextInt();
+        dest[destIndex++] = nextLong();
       }
 
       return destIndex;
     }
 
     @Override
-    public int nextInt() {
+    public long nextLong() {
       if (hasNext() == false) {
         throw new NoSuchElementException();
       }

@@ -29,13 +29,22 @@ public interface HnswBuilder {
 
   /**
    * Adds all nodes to the graph up to the provided {@code maxOrd}.
+   * Nodes are added with at subOrdinal = 0. This method should only be
+   * used for adding single valued vector fields.
    *
    * @param maxOrd The maximum ordinal (excluded) of the nodes to be added.
    */
   OnHeapHnswGraph build(int maxOrd) throws IOException;
 
-  /** Inserts a doc with vector value to the graph */
-  void addGraphNode(int node) throws IOException;
+  /** Inserts a doc with vector value to the graph
+   * Ordinal and subOrdinal values for indexed vector are packed into the long node
+   */
+  void addGraphNode(long node) throws IOException;
+
+  /** Adds a vector value to the graph at a specific ordinal and subOrdinal */
+  default void addGraphNode(int ordinal, int subOrdinal) throws IOException {
+    addGraphNode(HnswUtil.getNodeId(ordinal, subOrdinal));
+  }
 
   /** Set info-stream to output debugging information */
   void setInfoStream(InfoStream infoStream);

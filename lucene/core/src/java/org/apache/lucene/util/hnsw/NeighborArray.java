@@ -33,11 +33,11 @@ public class NeighborArray {
   private final boolean scoresDescOrder;
   private int size;
   private final float[] scores;
-  private final int[] nodes;
+  private final long[] nodes;
   private int sortedNodeSize;
 
   public NeighborArray(int maxSize, boolean descOrder) {
-    nodes = new int[maxSize];
+    nodes = new long[maxSize];
     scores = new float[maxSize];
     this.scoresDescOrder = descOrder;
   }
@@ -46,7 +46,7 @@ public class NeighborArray {
    * Add a new node to the NeighborArray. The new node must be worse than all previously stored
    * nodes. This cannot be called after {@link #addOutOfOrder(int, float)}
    */
-  public void addInOrder(int newNode, float newScore) {
+  public void addInOrder(long newNode, float newScore) {
     assert size == sortedNodeSize : "cannot call addInOrder after addOutOfOrder";
     if (size == nodes.length) {
       throw new IllegalStateException("No growth is allowed");
@@ -67,7 +67,7 @@ public class NeighborArray {
   }
 
   /** Add node and newScore but do not insert as sorted */
-  public void addOutOfOrder(int newNode, float newScore) {
+  public void addOutOfOrder(long newNode, float newScore) {
     if (size == nodes.length) {
       throw new IllegalStateException("No growth is allowed");
     }
@@ -78,7 +78,7 @@ public class NeighborArray {
   }
 
   /**
-   * In addition to {@link #addOutOfOrder(int, float)}, this function will also remove the
+   * In addition to {@link #addOutOfOrder(long, float)}, this function will also remove the
    * least-diverse node if the node array is full after insertion
    *
    * <p>In multi-threading environment, this method need to be locked as it will be called by
@@ -87,7 +87,7 @@ public class NeighborArray {
    * @param nodeId node Id of the owner of this NeighbourArray
    */
   public void addAndEnsureDiversity(
-      int newNode, float newScore, int nodeId, RandomVectorScorerSupplier scorerSupplier)
+      long newNode, float newScore, int nodeId, RandomVectorScorerSupplier scorerSupplier)
       throws IOException {
     addOutOfOrder(newNode, newScore);
     if (size < nodes.length) {
@@ -133,7 +133,7 @@ public class NeighborArray {
   /** insert the first unsorted node into its sorted position */
   private int insertSortedInternal(RandomVectorScorer scorer) throws IOException {
     assert sortedNodeSize < size : "Call this method only when there's unsorted node";
-    int tmpNode = nodes[sortedNodeSize];
+    long tmpNode = nodes[sortedNodeSize];
     float tmpScore = scores[sortedNodeSize];
 
     if (Float.isNaN(tmpScore)) {
@@ -155,7 +155,7 @@ public class NeighborArray {
   }
 
   /** This method is for test only. */
-  void insertSorted(int newNode, float newScore) throws IOException {
+  void insertSorted(long newNode, float newScore) throws IOException {
     addOutOfOrder(newNode, newScore);
     insertSortedInternal(null);
   }
@@ -169,7 +169,7 @@ public class NeighborArray {
    *
    * @lucene.internal
    */
-  public int[] nodes() {
+  public long[] nodes() {
     return nodes;
   }
 
@@ -235,9 +235,9 @@ public class NeighborArray {
    * Find first non-diverse neighbour among the list of neighbors starting from the most distant
    * neighbours
    */
-  private int findWorstNonDiverse(int nodeOrd, RandomVectorScorerSupplier scorerSupplier)
+  private int findWorstNonDiverse(long node, RandomVectorScorerSupplier scorerSupplier)
       throws IOException {
-    RandomVectorScorer scorer = scorerSupplier.scorer(nodeOrd);
+    RandomVectorScorer scorer = scorerSupplier.scorer(node);
     int[] uncheckedIndexes = sort(scorer);
     assert uncheckedIndexes != null : "We will always have something unchecked";
     int uncheckedCursor = uncheckedIndexes.length - 1;
@@ -279,7 +279,7 @@ public class NeighborArray {
       assert candidateIndex > uncheckedIndexes[uncheckedCursor];
       for (int i = uncheckedCursor; i >= 0; i--) {
         float neighborSimilarity = scorer.score(nodes[uncheckedIndexes[i]]);
-        // candidate node is too similar to node i given its score relative to the base node
+        // candidate node is too similar to node i, given its score relative to the base node
         if (neighborSimilarity >= minAcceptedSimilarity) {
           return true;
         }

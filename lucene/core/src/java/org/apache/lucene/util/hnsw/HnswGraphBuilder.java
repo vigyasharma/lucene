@@ -190,29 +190,31 @@ public class HnswGraphBuilder implements HnswBuilder {
     return hnsw;
   }
 
-  /** add vectors in range [minOrd, maxOrd) */
-  protected void addVectors(int minOrd, int maxOrd) throws IOException {
-    if (frozen) {
-      throw new IllegalStateException("This HnswGraphBuilder is frozen and cannot be updated");
-    }
-    long start = System.nanoTime(), t = start;
-    if (infoStream.isEnabled(HNSW_COMPONENT)) {
-      infoStream.message(HNSW_COMPONENT, "addVectors [" + minOrd + " " + maxOrd + ")");
-    }
-    for (int node = minOrd; node < maxOrd; node++) {
-      addGraphNode(node);
-      if ((node % 10000 == 0) && infoStream.isEnabled(HNSW_COMPONENT)) {
-        t = printGraphBuildStatus(node, start, t);
-      }
-    }
-  }
+  /** add vectors in range [minOrd, maxOrd)
+   * Should only be used for single-valued vector fields, since all values are indexed with subOrdinal = 0.
+   */
+//  protected void addVectors(int minOrd, int maxOrd) throws IOException {
+//    if (frozen) {
+//      throw new IllegalStateException("This HnswGraphBuilder is frozen and cannot be updated");
+//    }
+//    long start = System.nanoTime(), t = start;
+//    if (infoStream.isEnabled(HNSW_COMPONENT)) {
+//      infoStream.message(HNSW_COMPONENT, "addVectors [" + minOrd + " " + maxOrd + ")");
+//    }
+//    for (int node = minOrd; node < maxOrd; node++) {
+//      addGraphNode(node);
+//      if ((node % 10000 == 0) && infoStream.isEnabled(HNSW_COMPONENT)) {
+//        t = printGraphBuildStatus(node, start, t);
+//      }
+//    }
+//  }
 
-  private void addVectors(int maxOrd) throws IOException {
-    addVectors(0, maxOrd);
-  }
+//  private void addVectors(int maxOrd) throws IOException {
+//    addVectors(0, maxOrd);
+//  }
 
   @Override
-  public void addGraphNode(int node) throws IOException {
+  public void addGraphNode(long node) throws IOException {
     /*
     Note: this implementation is thread safe when graph size is fixed (e.g. when merging)
     The process of adding a node is roughly:

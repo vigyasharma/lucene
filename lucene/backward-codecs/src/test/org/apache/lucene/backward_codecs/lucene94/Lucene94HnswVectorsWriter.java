@@ -315,12 +315,12 @@ public final class Lucene94HnswVectorsWriter extends KnnVectorsWriter {
     }
     return new HnswGraph() {
       @Override
-      public int nextNeighbor() {
+      public long nextNeighbor() {
         throw new UnsupportedOperationException("Not supported on a mock graph");
       }
 
       @Override
-      public void seek(int level, int target) {
+      public void seek(int level, long target) {
         throw new UnsupportedOperationException("Not supported on a mock graph");
       }
 
@@ -335,7 +335,7 @@ public final class Lucene94HnswVectorsWriter extends KnnVectorsWriter {
       }
 
       @Override
-      public int entryNode() {
+      public long entryNode() {
         throw new UnsupportedOperationException("Not supported on a mock graph");
       }
 
