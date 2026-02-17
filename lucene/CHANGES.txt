@@ -68,6 +68,8 @@ New Features
 
 * GITHUB#14178: Add a Faiss-based vector format in the sandbox module. (Kaival Parikh)
 
+* GITHUB#15508: Use native vectorization in Lucene. (Ankur Goel, Shubham Chaudhary, Dawid Weiss)
+
 Improvements
 ---------------------
 
