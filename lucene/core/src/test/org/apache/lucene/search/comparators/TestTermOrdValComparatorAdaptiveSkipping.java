@@ -211,6 +211,10 @@ public class TestTermOrdValComparatorAdaptiveSkipping extends LuceneTestCase {
 
   private void buildIndex(Directory dir, IntFunction<BytesRef> valueSupplier) throws IOException {
     IndexWriterConfig config = newIndexWriterConfig();
+    // Use a LogMergePolicy to ensure segments are merged in order, preserving the document
+    // layout. Random merge policies like MockRandomMergePolicy can reorder segments during
+    // forceMerge, which would interleave clustered values and break test assertions.
+    config.setMergePolicy(newLogMergePolicy());
     try (IndexWriter writer = new IndexWriter(dir, config)) {
       for (int i = 0; i < NUM_DOCS; i++) {
         Document doc = new Document();
