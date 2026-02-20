@@ -140,8 +140,6 @@ Changes in Runtime Behavior
 ---------------------
 * GITHUB#14187: The query cache is now disabled by default. (Adrien Grand)
 
-* GITHUB#15729: Lucene90DocValuesProducer is not prefetching any data for DocValueSkippers anymore (Alexander Reelsen)
-
 Build
 ---------------------
 * GITHUB#15327: New low-level build options to detect abuse of LuceneTestCase.random():
@@ -205,6 +203,8 @@ Optimizations
 * GITHUB#15637: Lazily allocate ByteArrayDataInputs in SegmentTermsEnumFrame#15637 (Misha Dmitriev)
 
 * GITHUB#15718 Skip per-document stored field reads on sorted indices when no stored fields are present (Francisco Fernández Castaño)
+
+* GITHUB#15729: Lucene90DocValuesProducer is not prefetching any data for DocValueSkippers anymore (Alexander Reelsen)
 
 Bug Fixes
 ---------------------
