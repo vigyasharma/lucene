@@ -197,6 +197,8 @@ API Changes
 
 * GITHUB#15723: Add hook for LRUQueryCache to allow custom population strategies (Nhat Nguyen)
 
+* GITHUB#15751: Prevent zero vectors in knn fields with cosine similarity configured (Vigya Sharma)
+
 New Features
 ---------------------
 
