@@ -209,7 +209,7 @@ New Features
 
 Improvements
 ---------------------
-(No changes)
+* GITHUB#15753: Add Case Insensitive makeChar and makeString to Automata. (John Wagster)
 
 Optimizations
 ---------------------
@@ -862,7 +862,6 @@ Improvements
 
 * GITHUB#14239: Hunspell's option to tolerate affix rule count mismatches was
   improved to tolerate more instances of this problem.  (Robert Muir)
-
 
 * GITHUB#14238: Improve test coverage of Dynamic Range Faceting. (John Houser)
 
