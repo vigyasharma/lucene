@@ -8,6 +8,9 @@ http://s.apache.org/luceneversions
 API Changes
 ---------------------
 
+* GITHUB#15763: Deprecate Operations.complement() method. This operation can be slow and is not
+  recommended for production use. It will be removed in Lucene 12. (Saurabh Singh)
+
 * GITHUB#15755: Deprecate Operations.minus() method. This slow operation has been moved to
   AutomatonTestUtil.minus() for testing purposes only. The method will be removed in Lucene 12.
   (Saurabh Singh)
